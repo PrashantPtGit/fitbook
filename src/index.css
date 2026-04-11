@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { @apply bg-gray-50 text-gray-900 font-sans antialiased; }
+}
+
+@layer components {
+  .btn-primary   { @apply bg-primary text-primary-light px-4 py-2 rounded-btn text-sm font-medium hover:bg-primary-dark transition-colors cursor-pointer; }
+  .btn-secondary { @apply bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-btn text-sm hover:bg-gray-50 transition-colors cursor-pointer; }
+  .btn-success   { @apply bg-success text-success-light px-4 py-2 rounded-btn text-sm font-medium hover:opacity-90 transition-colors cursor-pointer; }
+  .btn-danger    { @apply bg-danger text-danger-light px-4 py-2 rounded-btn text-sm font-medium hover:opacity-90 transition-colors cursor-pointer; }
+  .card          { @apply bg-white border border-gray-100 rounded-card p-4; }
+  .input         { @apply bg-gray-50 border border-gray-200 rounded-btn px-3 py-2 text-sm w-full outline-none focus:border-primary transition-colors; }
+  .select        { @apply bg-gray-50 border border-gray-200 rounded-btn px-3 py-2 text-sm w-full outline-none focus:border-primary cursor-pointer; }
+  .label         { @apply text-xs text-gray-500 font-medium mb-1 block; }
+  .page-title    { @apply text-base font-medium text-gray-900; }
+  .page-sub      { @apply text-xs text-gray-400 mt-0.5; }
+  .badge-green   { @apply text-xs bg-success-light text-success-dark px-2 py-0.5 rounded-full font-medium; }
+  .badge-red     { @apply text-xs bg-danger-light  text-danger-dark  px-2 py-0.5 rounded-full font-medium; }
+  .badge-amber   { @apply text-xs bg-warning-light text-warning-dark px-2 py-0.5 rounded-full font-medium; }
+  .badge-purple  { @apply text-xs bg-primary-light text-primary-dark px-2 py-0.5 rounded-full font-medium; }
+  .badge-gray    { @apply text-xs bg-neutral-50    text-neutral-600  px-2 py-0.5 rounded-full font-medium; }
+  .metric-card   { @apply bg-gray-50 rounded-btn p-3; }
+  .metric-label  { @apply text-xs text-gray-400 mb-1; }
+  .metric-value  { @apply text-xl font-medium text-gray-900; }
+  .metric-sub    { @apply text-xs mt-1; }
+  .table-header  { @apply text-left px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide border-b border-gray-100; }
+  .table-cell    { @apply px-3 py-2.5 text-sm text-gray-800 border-b border-gray-50; }
+  .nav-item      { @apply flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500 cursor-pointer border-l-2 border-transparent hover:bg-gray-50 hover:text-gray-800 transition-all; }
+  .nav-item-active { @apply flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-primary-dark bg-primary-light border-l-2 border-primary cursor-pointer; }
+  .section-title { @apply text-xs font-medium text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1; }
+  .form-group    { @apply flex flex-col gap-1; }
+  .divider       { @apply border-t border-gray-100 my-3; }
+}
