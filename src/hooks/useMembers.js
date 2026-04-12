@@ -15,23 +15,20 @@ export function useMembersHook() {
   })))
 
   const fetchMembers = useCallback(async () => {
-    if (!supabaseReady) { setLoading(false); return }
+    if (!supabaseReady || !activeGymId) { setLoading(false); return }
 
     try {
       setLoading(true)
-      let query = supabase
+      const { data, error: err } = await supabase
         .from('members')
         .select(`
           *,
-          memberships(*, plans(name, duration_days, price)),
-          trainers(name),
-          gyms(name, location)
+          memberships!inner(*, plans(name, duration_days, price)),
+          trainers(name)
         `)
+        .eq('gym_id', activeGymId)
         .order('created_at', { ascending: false })
 
-      if (activeGymId) query = query.eq('gym_id', activeGymId)
-
-      const { data, error: err } = await query
       if (err) throw err
       setMembers(data || [])
     } catch (err) {
@@ -46,6 +43,18 @@ export function useMembersHook() {
 
   const members = useGymStore((s) => s.members)
   return { members, loading, error, refetch: fetchMembers }
+}
+
+// ─── Standalone fetch (for direct calls outside the hook) ─────────────────────
+export async function fetchAllMembers(gymId) {
+  if (!supabaseReady || !gymId) return []
+  const { data, error } = await supabase
+    .from('members')
+    .select('*, memberships!inner(*, plans(name, duration_days, price)), trainers(name)')
+    .eq('gym_id', gymId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
 }
 
 // ─── Add Member ───────────────────────────────────────────────────────────────

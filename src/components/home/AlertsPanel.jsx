@@ -1,13 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertCircle, Star, CheckCircle, Gift, Info, CheckCircle2 } from 'lucide-react'
-import { format, parseISO, isValid } from 'date-fns'
+import { format, parseISO, isValid, subDays } from 'date-fns'
 import { supabase, supabaseReady } from '../../lib/supabase'
 import { useGymStore } from '../../store/useGymStore'
-import { useReports } from '../../hooks/useReports'
-import { useAttendance } from '../../hooks/useAttendance'
-import { usePayments } from '../../hooks/usePayments'
-import { useMembersHook } from '../../hooks/useMembers'
 import { formatCurrency, generateWhatsAppLink, buildBirthdayMessage, todayISO } from '../../utils/helpers'
 
 export default function AlertsPanel() {
@@ -15,48 +11,85 @@ export default function AlertsPanel() {
   const activeGymId = useGymStore((s) => s.activeGymId)
   const activeGym   = useGymStore((s) => s.activeGym)
 
-  const { inactiveMembers } = useReports()
-  const { todayAttendance } = useAttendance()
-  const { payments }        = usePayments()
-  const { members }         = useMembersHook()
-
-  const [expiredToday, setExpiredToday] = useState([])
+  const [expiredToday,    setExpiredToday]    = useState([])
+  const [inactiveMembers, setInactiveMembers] = useState([])
+  const [todayPayments,   setTodayPayments]   = useState([])
+  const [birthdayMembers, setBirthdayMembers] = useState([])
+  const [todayAttendanceCount, setTodayAttendanceCount] = useState(0)
 
   useEffect(() => {
-    if (!supabaseReady) return
-    async function loadExpired() {
-      const today = todayISO()
-      let q = supabase
+    if (!supabaseReady || !activeGymId) return
+
+    const today   = todayISO()
+    const cutoff  = format(subDays(new Date(), 10), 'yyyy-MM-dd')
+    const todayMD = format(new Date(), 'MM-dd')
+
+    async function loadAlerts() {
+      // Expired today
+      const { data: expired } = await supabase
         .from('memberships')
         .select('*, members(id, name, phone, whatsapp), plans(name, price)')
+        .eq('gym_id', activeGymId)
         .eq('end_date', today)
         .eq('status', 'active')
-      if (activeGymId) q = q.eq('gym_id', activeGymId)
-      const { data } = await q
-      setExpiredToday(data || [])
-    }
-    loadExpired()
-  }, [activeGymId])
+      setExpiredToday(expired || [])
 
-  const todayPayments = useMemo(() => {
-    const today = todayISO()
-    return payments.filter((p) => p.payment_date === today)
-  }, [payments])
+      // Today's attendance count
+      const { count: attCount } = await supabase
+        .from('attendance')
+        .select('*', { count: 'exact', head: true })
+        .eq('gym_id', activeGymId)
+        .eq('date', today)
+      setTodayAttendanceCount(attCount || 0)
+
+      // Today's payments
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('amount, payment_mode')
+        .eq('gym_id', activeGymId)
+        .eq('payment_date', today)
+      setTodayPayments(payments || [])
+
+      // Inactive: active members with no attendance in last 10 days
+      const { data: activeMembers } = await supabase
+        .from('members')
+        .select('id, name, phone, whatsapp')
+        .eq('gym_id', activeGymId)
+        .eq('status', 'active')
+
+      if (activeMembers?.length) {
+        const { data: recentAtt } = await supabase
+          .from('attendance')
+          .select('member_id')
+          .eq('gym_id', activeGymId)
+          .gte('date', cutoff)
+        const recentIds = new Set((recentAtt || []).map((r) => r.member_id))
+        setInactiveMembers(activeMembers.filter((m) => !recentIds.has(m.id)))
+      }
+
+      // Birthdays: filter client-side since Supabase JS can't easily extract MM-DD
+      const { data: allMembers } = await supabase
+        .from('members')
+        .select('id, name, phone, whatsapp, date_of_birth')
+        .eq('gym_id', activeGymId)
+        .eq('status', 'active')
+        .not('date_of_birth', 'is', null)
+
+      const bdays = (allMembers || []).filter((m) => {
+        try {
+          const d = parseISO(m.date_of_birth)
+          return isValid(d) && format(d, 'MM-dd') === todayMD
+        } catch { return false }
+      })
+      setBirthdayMembers(bdays)
+    }
+
+    loadAlerts()
+  }, [activeGymId])
 
   const todayRevenue = todayPayments.reduce((s, p) => s + (p.amount || 0), 0)
   const upiCount     = todayPayments.filter((p) => p.payment_mode === 'upi').length
   const cashCount    = todayPayments.filter((p) => p.payment_mode === 'cash').length
-
-  const birthdayMembers = useMemo(() => {
-    const todayMD = format(new Date(), 'MM-dd')
-    return members.filter((m) => {
-      if (!m.date_of_birth) return false
-      try {
-        const d = parseISO(m.date_of_birth)
-        return isValid(d) && format(d, 'MM-dd') === todayMD
-      } catch { return false }
-    })
-  }, [members])
 
   const alerts = useMemo(() => {
     const list = []
@@ -107,18 +140,18 @@ export default function AlertsPanel() {
       action: null,
     })
 
-    if (todayAttendance.length < 10) list.push({
+    if (todayAttendanceCount < 10) list.push({
       key: 'low-att',
       priority: 5,
       Icon: Info,
       iconBg: 'bg-blue-50', iconColor: 'text-blue-500',
-      message: `Only ${todayAttendance.length} member${todayAttendance.length !== 1 ? 's' : ''} checked in so far today`,
+      message: `Only ${todayAttendanceCount} member${todayAttendanceCount !== 1 ? 's' : ''} checked in so far today`,
       sub: null,
       action: null,
     })
 
     return list.sort((a, b) => a.priority - b.priority)
-  }, [expiredToday, birthdayMembers, inactiveMembers, todayPayments, todayAttendance])
+  }, [expiredToday, birthdayMembers, inactiveMembers, todayPayments, todayAttendanceCount])
 
   return (
     <div className="card">

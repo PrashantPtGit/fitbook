@@ -14,7 +14,7 @@ export function useReports() {
   const activeGymId = useGymStore((s) => s.activeGymId)
 
   const fetchReports = useCallback(async () => {
-    if (!supabaseReady) { setLoading(false); return }
+    if (!supabaseReady || !activeGymId) { setLoading(false); return }
 
     try {
       setLoading(true)
@@ -78,16 +78,16 @@ export function useReports() {
   }
 
   async function fetchExpiringThisWeek(gymId) {
-    const today = todayISO()
-    const week  = dateISO(addDays(new Date(), 7))
+    const today     = todayISO()
+    const todayPlus14 = dateISO(addDays(new Date(), 14))
 
     let q = supabase
       .from('memberships')
-      .select('*, members(name, phone, member_code), plans(name)')
+      .select('*, members(name, phone, member_code), plans(name, price)')
       .eq('status', 'active')
       .gte('end_date', today)
-      .lte('end_date', week)
-      .order('end_date')
+      .lte('end_date', todayPlus14)
+      .order('end_date', { ascending: true })
 
     if (gymId) q = q.eq('gym_id', gymId)
 
@@ -127,4 +127,53 @@ export function useReports() {
   useEffect(() => { fetchReports() }, [fetchReports])
 
   return { monthlyRevenue, breakdown, expiringThisWeek, inactiveMembers, loading, refetch: fetchReports }
+}
+
+// ─── Standalone helpers for direct component calls ─────────────────────────
+export async function getExpiringThisWeek(gymId) {
+  if (!gymId) return []
+  const today       = todayISO()
+  const todayPlus14 = dateISO(addDays(new Date(), 14))
+  const { data } = await supabase
+    .from('memberships')
+    .select('*, members(name, phone, member_code), plans(name, price)')
+    .eq('gym_id', gymId)
+    .eq('status', 'active')
+    .gte('end_date', today)
+    .lte('end_date', todayPlus14)
+    .order('end_date', { ascending: true })
+  return data || []
+}
+
+export async function getMonthlyRevenue(gymId, months = 6) {
+  if (!gymId) return []
+  const results = []
+  for (let i = months - 1; i >= 0; i--) {
+    const monthDate = subMonths(new Date(), i)
+    const start = format(startOfMonth(monthDate), 'yyyy-MM-dd')
+    const end   = format(endOfMonth(monthDate),   'yyyy-MM-dd')
+    const { data } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('gym_id', gymId)
+      .gte('payment_date', start)
+      .lte('payment_date', end)
+    const total = (data || []).reduce((sum, r) => sum + (r.amount || 0), 0)
+    results.push({ month: format(monthDate, 'MMM'), amount: total })
+  }
+  return results
+}
+
+export async function getCurrentMonthRevenue(gymId) {
+  if (!gymId) return 0
+  const now   = new Date()
+  const start = format(startOfMonth(now), 'yyyy-MM-dd')
+  const end   = format(endOfMonth(now),   'yyyy-MM-dd')
+  const { data } = await supabase
+    .from('payments')
+    .select('amount')
+    .eq('gym_id', gymId)
+    .gte('payment_date', start)
+    .lte('payment_date', end)
+  return (data || []).reduce((sum, r) => sum + (r.amount || 0), 0)
 }

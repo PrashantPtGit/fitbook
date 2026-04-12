@@ -16,25 +16,23 @@ export default function ExpiryList() {
   const navigate    = useNavigate()
 
   useEffect(() => {
-    if (!supabaseReady) { setLoading(false); return }
+    if (!supabaseReady || !activeGymId) { setLoading(false); return }
 
     async function fetch() {
       setLoading(true)
       const today = todayISO()
       const in14  = dateISO(addDays(new Date(), 14))
 
-      let q = supabase
+      const { data } = await supabase
         .from('memberships')
         .select('*, members(id, name, phone, member_code), plans(name, price)')
+        .eq('gym_id', activeGymId)
         .eq('status', 'active')
         .gte('end_date', today)
         .lte('end_date', in14)
-        .order('end_date')
+        .order('end_date', { ascending: true })
         .limit(5)
 
-      if (activeGymId) q = q.eq('gym_id', activeGymId)
-
-      const { data } = await q
       setExpiring(data || [])
       setLoading(false)
     }
