@@ -112,3 +112,35 @@ export function dateISO(date) {
 export function subDaysISO(days) {
   return format(subDays(new Date(), days), 'yyyy-MM-dd')
 }
+
+// ─── CSV Export ───────────────────────────────────────────────────────────────
+export function exportMembersCSV(members) {
+  const headers = ['Member ID', 'Name', 'Phone', 'Plan', 'Start Date', 'End Date', 'Status', 'Batch', 'Trainer']
+  const rows = members.map((m) => {
+    const ms = m.memberships?.[0]
+    const st = ms ? getMembershipStatus(ms.end_date) : { status: 'unknown' }
+    return [
+      m.member_code || '',
+      m.name || '',
+      m.phone || '',
+      ms?.plans?.name || '',
+      ms?.start_date || '',
+      ms?.end_date || '',
+      st.status,
+      m.batch_timing || '',
+      m.trainers?.name || '',
+    ]
+  })
+
+  const escape = (v) => `"${String(v).replace(/"/g, '""')}"`
+  const csv = [headers, ...rows].map((r) => r.map(escape).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `fitbook-members-${format(new Date(), 'yyyy-MM-dd')}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
