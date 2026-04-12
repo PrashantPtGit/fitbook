@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useGymStore } from '../store/useGymStore'
+import { useShallow } from 'zustand/react/shallow'
 
 export function useSettings() {
   const [settings, setSettingsLocal] = useState({})
   const [loading, setLoading] = useState(true)
-  const { activeGymId, setSettings } = useGymStore((s) => ({
+  const { activeGymId, setSettings } = useGymStore(useShallow((s) => ({
     activeGymId: s.activeGymId,
     setSettings: s.setSettings,
-  }))
+  })))
 
   useEffect(() => {
     if (!supabaseReady || !activeGymId) {

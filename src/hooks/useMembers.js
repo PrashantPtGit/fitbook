@@ -2,16 +2,17 @@ import { useState, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useGymStore } from '../store/useGymStore'
+import { useShallow } from 'zustand/react/shallow'
 import { generateMemberCode, todayISO, dateISO } from '../utils/helpers'
 import { addDays, subDays, format } from 'date-fns'
 
 export function useMembersHook() {
   const [loading, setLoading]   = useState(true)
   const [error,   setError]     = useState(null)
-  const { activeGymId, setMembers } = useGymStore((s) => ({
+  const { activeGymId, setMembers } = useGymStore(useShallow((s) => ({
     activeGymId: s.activeGymId,
     setMembers:  s.setMembers,
-  }))
+  })))
 
   const fetchMembers = useCallback(async () => {
     if (!supabaseReady) { setLoading(false); return }

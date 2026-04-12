@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useGymStore } from '../store/useGymStore'
+import { useShallow } from 'zustand/react/shallow'
 import { todayISO, dateISO } from '../utils/helpers'
 import { addDays } from 'date-fns'
 
 export function usePayments() {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
-  const { activeGymId, setPayments } = useGymStore((s) => ({
+  const { activeGymId, setPayments } = useGymStore(useShallow((s) => ({
     activeGymId: s.activeGymId,
     setPayments:  s.setPayments,
-  }))
+  })))
 
   const fetchPayments = useCallback(async () => {
     if (!supabaseReady) { setLoading(false); return }

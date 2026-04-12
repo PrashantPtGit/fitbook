@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useGymStore } from '../store/useGymStore'
+import { useShallow } from 'zustand/react/shallow'
 import { todayISO, subDaysISO, dateISO } from '../utils/helpers'
 import { subDays, format } from 'date-fns'
 
@@ -11,10 +12,10 @@ export function useAttendance() {
   const [error,           setError]            = useState(null)
   const channelRef = useRef(null)
 
-  const { activeGymId, addAttendance } = useGymStore((s) => ({
+  const { activeGymId, addAttendance } = useGymStore(useShallow((s) => ({
     activeGymId:   s.activeGymId,
     addAttendance: s.addAttendance,
-  }))
+  })))
 
   const fetchAttendance = useCallback(async () => {
     if (!supabaseReady) { setLoading(false); return }
