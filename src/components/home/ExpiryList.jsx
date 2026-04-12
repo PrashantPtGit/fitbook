@@ -76,7 +76,9 @@ export default function ExpiryList() {
                   <p className="text-sm font-medium text-gray-800 truncate">{m.members?.name}</p>
                   <p className="text-xs text-gray-400">
                     {m.plans?.name}
-                    {m.plans?.price ? ` · ${formatCurrency(m.plans.price)} due` : ''}
+                    {m.plans?.price && (
+                      <span className="hidden sm:inline">{` · ${formatCurrency(m.plans.price)} due`}</span>
+                    )}
                   </p>
                 </div>
                 <Badge variant={st.badgeVariant}>{st.label}</Badge>

@@ -93,73 +93,76 @@ export default function Members() {
   return (
     <AppLayout pageTitle="My Members" pageSubtitle={`${members.length} members across all batches`}>
 
-      {/* Top row: stats + actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      {/* Top row: actions */}
+      <div className="flex items-center justify-between gap-2 mb-4">
         <MemberStats members={members} />
         <div className="flex gap-2 shrink-0">
           <button
             onClick={() => exportMembersCSV(members)}
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center gap-1.5"
           >
             <Download size={14} />
-            Export list
+            <span className="hidden sm:inline">Export list</span>
           </button>
           <button
             onClick={() => navigate('/members/add')}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-1.5"
           >
             <UserPlus size={14} />
-            Add member
+            <span className="hidden sm:inline">Add member</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
 
       {/* Search + filters */}
       <div className="card mb-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
           {/* Search */}
-          <div className="relative flex-1 min-w-[220px]">
+          <div className="relative flex-1 min-w-0">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => { setSearch(e.target.value); resetPage() }}
-              placeholder="Search by name, phone or member ID..."
-              className="input pl-8"
+              placeholder="Search name, phone or ID..."
+              className="input pl-8 w-full"
             />
           </div>
 
-          <select
-            value={planFilter}
-            onChange={(e) => { setPlanFilter(e.target.value); resetPage() }}
-            className="input w-auto"
-          >
-            <option value="all">All Plans</option>
-            {planOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
+          <div className="flex gap-2 flex-wrap">
+            <select
+              value={planFilter}
+              onChange={(e) => { setPlanFilter(e.target.value); resetPage() }}
+              className="input flex-1 sm:flex-none sm:w-auto"
+            >
+              <option value="all">All Plans</option>
+              {planOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); resetPage() }}
-            className="input w-auto"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="expiring">Expiring soon</option>
-            <option value="expired">Expired</option>
-          </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); resetPage() }}
+              className="input flex-1 sm:flex-none sm:w-auto"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="expiring">Expiring soon</option>
+              <option value="expired">Expired</option>
+            </select>
 
-          <select
-            value={batchFilter}
-            onChange={(e) => { setBatchFilter(e.target.value); resetPage() }}
-            className="input w-auto"
-          >
-            <option value="all">All Batches</option>
-            {batchOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
+            <select
+              value={batchFilter}
+              onChange={(e) => { setBatchFilter(e.target.value); resetPage() }}
+              className="input flex-1 sm:flex-none sm:w-auto"
+            >
+              <option value="all">All Batches</option>
+              {batchOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
 
-          <span className="text-xs text-gray-400 ml-auto">
-            Showing {paginated.length} of {filtered.length} members
+          <span className="text-xs text-gray-400 sm:ml-auto">
+            {paginated.length} of {filtered.length} members
           </span>
         </div>
       </div>

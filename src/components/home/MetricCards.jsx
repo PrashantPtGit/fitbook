@@ -9,7 +9,7 @@ import { SkeletonMetricCard } from '../ui/Skeleton'
 function MetricCard({ icon: Icon, iconBg, iconColor, label, value, sub, subColor = 'text-gray-400', loading }) {
   if (loading) return <SkeletonMetricCard />
   return (
-    <div className="card">
+    <div className="card !p-3 sm:!p-4">
       <div className="flex items-start justify-between mb-2">
         <p className="metric-label">{label}</p>
         <div className={`p-1.5 rounded-btn ${iconBg}`}>

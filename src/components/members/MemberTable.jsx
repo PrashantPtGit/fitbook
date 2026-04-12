@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { ChevronUp, ChevronDown, UserPlus } from 'lucide-react'
 import MemberRow from './MemberRow'
+import Avatar from '../ui/Avatar'
+import Badge from '../ui/Badge'
 import { SkeletonRow } from '../ui/Skeleton'
+import { getMembershipStatus } from '../../utils/helpers'
 
 const COLS = [
   { key: 'name',    label: 'Member',  sortable: true },
@@ -52,28 +55,57 @@ export default function MemberTable({ members, loading, sort, onSort }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b border-gray-100">
-            {COLS.map((col) => (
-              <th
-                key={col.key}
-                onClick={() => col.sortable && onSort(col.key)}
-                className={`px-4 py-2.5 text-xs text-gray-400 font-medium whitespace-nowrap select-none ${col.sortable ? 'cursor-pointer hover:text-gray-600' : ''}`}
-              >
-                {col.label}
-                <SortIcon col={col} sort={sort} />
-              </th>
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-gray-100">
+              {COLS.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={() => col.sortable && onSort(col.key)}
+                  className={`px-4 py-2.5 text-xs text-gray-400 font-medium whitespace-nowrap select-none ${col.sortable ? 'cursor-pointer hover:text-gray-600' : ''}`}
+                >
+                  {col.label}
+                  <SortIcon col={col} sort={sort} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {members.map((m, i) => (
+              <MemberRow key={m.id} member={m} gymIndex={i % 3} />
             ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50">
-          {members.map((m, i) => (
-            <MemberRow key={m.id} member={m} gymIndex={i % 3} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden divide-y divide-gray-50">
+        {members.map((m, i) => {
+          const ms = m.memberships?.[0]
+          const st = ms
+            ? getMembershipStatus(ms.end_date)
+            : { label: '—', badgeVariant: 'gray' }
+          return (
+            <div
+              key={m.id}
+              onClick={() => navigate(`/members/${m.id}`)}
+              className="flex items-center gap-3 py-3 px-1 cursor-pointer hover:bg-gray-50 transition-colors"
+            >
+              <Avatar name={m.name} size="sm" gymIndex={i % 3} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {ms?.plans?.name || '—'} · {m.batch_timing || '—'}
+                </p>
+              </div>
+              <Badge variant={st.badgeVariant}>{st.label}</Badge>
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }

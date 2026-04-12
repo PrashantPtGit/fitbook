@@ -22,7 +22,7 @@ export default function AppLayout({ children, pageTitle = '', pageSubtitle = '' 
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar pageTitle={pageTitle} pageSubtitle={pageSubtitle} />
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-5">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Spinner size="lg" />

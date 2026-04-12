@@ -144,3 +144,28 @@ export function exportMembersCSV(members) {
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
+
+export function exportPaymentsCSV(payments, filename) {
+  const headers = ['Date', 'Member Name', 'Member ID', 'Plan', 'Amount', 'Mode', 'Transaction ID', 'Note']
+  const rows = payments.map((p) => [
+    p.payment_date || '',
+    p.members?.name || '',
+    p.members?.member_code || '',
+    p.plans?.name || '',
+    p.amount || 0,
+    p.payment_mode || '',
+    p.transaction_id || '',
+    p.note || '',
+  ])
+  const escape = (v) => `"${String(v).replace(/"/g, '""')}"`
+  const csv = [headers, ...rows].map((r) => r.map(escape).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = filename || `fitbook-payments-${format(new Date(), 'yyyy-MM-dd')}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
