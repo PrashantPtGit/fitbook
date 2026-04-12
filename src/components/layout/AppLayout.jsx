@@ -1,9 +1,20 @@
+import { useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
-import { useGyms } from '../../hooks/useGyms'
+import { useGymsData } from '../../hooks/useGymsData'
+import { seedDatabase } from '../../data/seedData'
+
+let seedAttempted = false
 
 export default function AppLayout({ children, pageTitle = '', pageSubtitle = '' }) {
-  useGyms()
+  useGymsData()
+
+  useEffect(() => {
+    if (!seedAttempted) {
+      seedAttempted = true
+      seedDatabase().catch(console.error)
+    }
+  }, [])
 
   return (
     <div className="flex h-screen overflow-hidden">
