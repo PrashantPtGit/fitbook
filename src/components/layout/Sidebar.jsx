@@ -1,26 +1,27 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, CalendarCheck,
-  MessageSquare, Heart, Salad, BarChart2, X,
+  MessageSquare, Activity, Salad, BarChart2, X,
 } from 'lucide-react'
 import Avatar from '../ui/Avatar'
 import { useGymStore } from '../../store/useGymStore'
 
-const daily = [
-  { to: '/',           label: 'Home',       icon: LayoutDashboard },
-  { to: '/members',    label: 'Members',    icon: Users },
-  { to: '/fees',       label: 'Fees',       icon: CreditCard },
-  { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
+// Each nav item has a unique accent color dot per design spec
+const DAILY = [
+  { to: '/',           label: 'Home',       icon: LayoutDashboard, dot: 'bg-primary'  },
+  { to: '/members',    label: 'Members',    icon: Users,           dot: 'bg-electric' },
+  { to: '/fees',       label: 'Fees',       icon: CreditCard,      dot: 'bg-warning'  },
+  { to: '/attendance', label: 'Attendance', icon: CalendarCheck,   dot: 'bg-info'     },
 ]
 
-const tools = [
-  { to: '/messages', label: 'Messages', icon: MessageSquare },
-  { to: '/health',   label: 'Health',   icon: Heart },
-  { to: '/diet',     label: 'Diet',     icon: Salad },
-  { to: '/reports',  label: 'Reports',  icon: BarChart2 },
+const TOOLS = [
+  { to: '/messages', label: 'Messages', icon: MessageSquare, dot: 'bg-[#EC4899]' },
+  { to: '/health',   label: 'Health',   icon: Activity,      dot: 'bg-fire'      },
+  { to: '/diet',     label: 'Diet',     icon: Salad,         dot: 'bg-success'   },
+  { to: '/reports',  label: 'Reports',  icon: BarChart2,     dot: 'bg-ink-muted' },
 ]
 
-function NavItem({ to, label, icon: Icon, onNavigate }) {
+function NavItem({ to, label, icon: Icon, dot, onNavigate }) {
   return (
     <NavLink
       to={to}
@@ -28,8 +29,14 @@ function NavItem({ to, label, icon: Icon, onNavigate }) {
       onClick={onNavigate}
       className={({ isActive }) => isActive ? 'nav-item-active' : 'nav-item'}
     >
-      <Icon size={16} />
-      {label}
+      {({ isActive }) => (
+        <>
+          {/* Colored dot indicator */}
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? dot : 'bg-surface-border'} transition-colors duration-150`} />
+          <Icon size={15} className="shrink-0" />
+          {label}
+        </>
+      )}
     </NavLink>
   )
 }
@@ -37,63 +44,71 @@ function NavItem({ to, label, icon: Icon, onNavigate }) {
 export default function Sidebar() {
   const sidebarOpen    = useGymStore((s) => s.sidebarOpen)
   const setSidebarOpen = useGymStore((s) => s.setSidebarOpen)
-
   const close = () => setSidebarOpen(false)
 
   return (
     <>
       {/* Mobile backdrop */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
-          onClick={close}
-        />
+        <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={close} />
       )}
 
-      {/* Sidebar */}
       <aside
         className={[
-          // base
           'fixed md:sticky top-0 h-screen z-50 md:z-auto',
-          'w-48 flex flex-col bg-white border-r border-gray-100 shrink-0',
+          'w-[200px] flex flex-col bg-white border-r border-surface-border shrink-0',
           'transition-transform duration-200 ease-in-out',
-          // mobile: slide in/out; desktop: always visible
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         ].join(' ')}
+        style={{ boxShadow: sidebarOpen ? '4px 0 24px rgba(83,74,183,0.08)' : 'none' }}
       >
-        {/* Logo + mobile close */}
-        <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between">
+        {/* Logo */}
+        <div className="px-4 py-4 border-b border-surface-border flex items-center justify-between">
           <div>
-            <div className="text-base font-semibold text-gray-900">FitBook</div>
-            <div className="text-xs text-primary font-medium">Gym Manager</div>
+            <div
+              className="text-[18px] font-bold text-ink leading-none"
+              style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
+            >
+              FitBook
+            </div>
+            <div className="text-[11px] text-primary font-semibold mt-0.5 tracking-wide">
+              Gym Manager
+            </div>
           </div>
           <button
             onClick={close}
-            className="md:hidden p-1 rounded-btn text-gray-400 hover:text-gray-700"
+            className="md:hidden p-1 rounded-btn text-ink-muted hover:text-ink hover:bg-surface-app transition-colors"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
-        {/* Nav */}
+        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2">
           <p className="section-title">Daily Use</p>
-          {daily.map((item) => (
+          {DAILY.map((item) => (
             <NavItem key={item.to} {...item} onNavigate={close} />
           ))}
 
+          <div className="mx-3 my-2 h-px bg-surface-border" />
+
           <p className="section-title">Tools</p>
-          {tools.map((item) => (
+          {TOOLS.map((item) => (
             <NavItem key={item.to} {...item} onNavigate={close} />
           ))}
         </nav>
 
-        {/* Owner */}
-        <div className="px-3 py-3 border-t border-gray-100 flex items-center gap-2.5">
+        {/* Owner profile */}
+        <div className="px-3 py-3 border-t border-surface-border flex items-center gap-2.5">
           <Avatar name="Ramesh Kumar" size="sm" gymIndex={0} />
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-gray-900 truncate">Ramesh Kumar</p>
-            <p className="text-xs text-gray-400">Owner</p>
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-[13px] font-semibold text-ink truncate leading-tight"
+              style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
+            >
+              Ramesh Kumar
+            </p>
+            <p className="text-[11px] text-ink-muted">Owner</p>
           </div>
         </div>
       </aside>

@@ -21,8 +21,19 @@ export default function Home() {
       pageTitle={activeGym ? activeGym.name : 'All Gyms Overview'}
       pageSubtitle={today}
     >
-      <WelcomeBanner />
-      <p className="text-sm text-gray-500 mb-4">{getGreeting()}, Ramesh 👋</p>
+      {/* Hero greeting */}
+      <div className="mb-5">
+        <WelcomeBanner />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+          <p
+            className="text-lg font-semibold text-ink"
+            style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
+          >
+            {getGreeting()}, Ramesh 👋
+          </p>
+          <p className="text-sm text-ink-muted">{today}</p>
+        </div>
+      </div>
 
       {activeGymId
         ? <SingleGymDashboard gymId={activeGymId} gymName={activeGym?.name || ''} />

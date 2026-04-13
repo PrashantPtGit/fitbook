@@ -2,57 +2,193 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
   * { box-sizing: border-box; }
-  body { @apply bg-gray-50 text-gray-900 font-sans antialiased; }
+
+  body {
+    @apply bg-surface-app text-ink font-sans antialiased;
+  }
+
+  /* Heading elements use display font */
+  h1, h2, h3, h4, h5 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
 }
 
+/* ─── Component classes ───────────────────────────────────────────────────── */
 @layer components {
-  .btn-primary   { @apply bg-primary text-primary-light px-4 py-2 rounded-btn text-sm font-medium hover:bg-primary-dark transition-colors cursor-pointer; }
-  .btn-secondary { @apply bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-btn text-sm hover:bg-gray-50 transition-colors cursor-pointer; }
-  .btn-success   { @apply bg-success text-success-light px-4 py-2 rounded-btn text-sm font-medium hover:opacity-90 transition-colors cursor-pointer; }
-  .btn-danger    { @apply bg-danger text-danger-light px-4 py-2 rounded-btn text-sm font-medium hover:opacity-90 transition-colors cursor-pointer; }
-  .card          { @apply bg-white border border-gray-100 rounded-card p-4; }
-  .input         { @apply bg-gray-50 border border-gray-200 rounded-btn px-3 py-2 text-sm w-full outline-none focus:border-primary transition-colors; }
-  .select        { @apply bg-gray-50 border border-gray-200 rounded-btn px-3 py-2 text-sm w-full outline-none focus:border-primary cursor-pointer; }
-  .label         { @apply text-xs text-gray-500 font-medium mb-1 block; }
-  .page-title    { @apply text-base font-medium text-gray-900; }
-  .page-sub      { @apply text-xs text-gray-400 mt-0.5; }
-  .badge-green   { @apply text-xs bg-success-light text-success-dark px-2 py-0.5 rounded-full font-medium; }
-  .badge-red     { @apply text-xs bg-danger-light  text-danger-dark  px-2 py-0.5 rounded-full font-medium; }
-  .badge-amber   { @apply text-xs bg-warning-light text-warning-dark px-2 py-0.5 rounded-full font-medium; }
-  .badge-purple  { @apply text-xs bg-primary-light text-primary-dark px-2 py-0.5 rounded-full font-medium; }
-  .badge-gray    { @apply text-xs bg-neutral-50    text-neutral-600  px-2 py-0.5 rounded-full font-medium; }
-  .metric-card   { @apply bg-gray-50 rounded-btn p-3; }
-  .metric-label  { @apply text-xs text-gray-400 mb-1; }
-  .metric-value  { @apply text-xl font-medium text-gray-900; }
-  .metric-sub    { @apply text-xs mt-1; }
-  .table-header  { @apply text-left px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide border-b border-gray-100; }
-  .table-cell    { @apply px-3 py-2.5 text-sm text-gray-800 border-b border-gray-50; }
-  .nav-item      { @apply flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500 cursor-pointer border-l-2 border-transparent hover:bg-gray-50 hover:text-gray-800 transition-all; }
-  .nav-item-active { @apply flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-primary-dark bg-primary-light border-l-2 border-primary cursor-pointer; }
-  .section-title { @apply text-xs font-medium text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1; }
-  .form-group    { @apply flex flex-col gap-1; }
-  .divider       { @apply border-t border-gray-100 my-3; }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-btn text-sm font-medium
+           hover:bg-primary-dark active:scale-[0.97]
+           transition-all duration-150 cursor-pointer shadow-sm;
+  }
+  .btn-secondary {
+    @apply bg-white text-ink border border-surface-border px-4 py-2 rounded-btn text-sm
+           hover:bg-surface-app hover:border-primary-mid active:scale-[0.97]
+           transition-all duration-150 cursor-pointer;
+  }
+  .btn-success {
+    @apply bg-success text-white px-4 py-2 rounded-btn text-sm font-medium
+           hover:opacity-90 active:scale-[0.97] transition-all duration-150 cursor-pointer;
+  }
+  .btn-danger {
+    @apply bg-danger text-white px-4 py-2 rounded-btn text-sm font-medium
+           hover:bg-danger-dark active:scale-[0.97] transition-all duration-150 cursor-pointer;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white border border-surface-border rounded-card p-4 shadow-card;
+  }
+
+  /* Inputs */
+  .input {
+    @apply bg-surface-app border border-surface-border rounded-btn px-3 py-2 text-sm w-full
+           text-ink placeholder:text-ink-muted
+           outline-none focus:border-primary focus:shadow-focus
+           transition-all duration-150;
+  }
+  .select {
+    @apply bg-surface-app border border-surface-border rounded-btn px-3 py-2 text-sm w-full
+           text-ink outline-none focus:border-primary cursor-pointer;
+  }
+  .label {
+    @apply text-xs text-ink-secondary font-medium mb-1 block;
+  }
+
+  /* Page header */
+  .page-title {
+    @apply text-base font-semibold text-ink;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .page-sub   { @apply text-xs text-ink-muted mt-0.5; }
+
+  /* Status badges — with colored dot */
+  .badge-green {
+    @apply inline-flex items-center gap-1.5 text-[11px] font-medium
+           bg-success-light text-success-dark px-2.5 py-0.5 rounded-full;
+  }
+  .badge-green::before  { content: ''; @apply block w-1.5 h-1.5 rounded-full bg-success shrink-0; }
+
+  .badge-red {
+    @apply inline-flex items-center gap-1.5 text-[11px] font-medium
+           bg-danger-light text-danger-dark px-2.5 py-0.5 rounded-full;
+  }
+  .badge-red::before    { content: ''; @apply block w-1.5 h-1.5 rounded-full bg-danger shrink-0 animate-badge-pulse; }
+
+  .badge-amber {
+    @apply inline-flex items-center gap-1.5 text-[11px] font-medium
+           bg-warning-light text-warning-dark px-2.5 py-0.5 rounded-full;
+  }
+  .badge-amber::before  { content: ''; @apply block w-1.5 h-1.5 rounded-full bg-warning shrink-0; }
+
+  .badge-purple {
+    @apply inline-flex items-center gap-1.5 text-[11px] font-medium
+           bg-primary-light text-primary-dark px-2.5 py-0.5 rounded-full;
+  }
+  .badge-purple::before { content: ''; @apply block w-1.5 h-1.5 rounded-full bg-primary shrink-0; }
+
+  .badge-gray {
+    @apply inline-flex items-center gap-1.5 text-[11px] font-medium
+           bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full;
+  }
+  .badge-gray::before   { content: ''; @apply block w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0; }
+
+  /* Metric cards */
+  .metric-card  { @apply bg-surface-app rounded-btn p-3; }
+  .metric-label { @apply text-xs text-ink-muted mb-1; }
+  .metric-value {
+    @apply text-xl font-medium text-ink;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .metric-sub   { @apply text-xs mt-1; }
+
+  /* Tables */
+  .table-header {
+    @apply text-left px-3 py-2.5 text-[10px] font-semibold text-ink-secondary
+           uppercase tracking-wider border-b-2 border-primary-light;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .table-cell {
+    @apply px-3 py-3 text-sm text-ink border-b border-surface-border;
+  }
+
+  /* Nav items */
+  .nav-item {
+    @apply flex items-center gap-2.5 px-3 py-2 text-sm text-ink-secondary
+           cursor-pointer border-l-2 border-transparent
+           hover:bg-primary-light/40 hover:text-primary-dark
+           transition-all duration-150 rounded-r-btn;
+  }
+  .nav-item-active {
+    @apply flex items-center gap-2.5 px-3 py-2 text-sm font-medium
+           text-primary-dark bg-primary-light border-l-2 border-primary
+           cursor-pointer shadow-inset-l rounded-r-btn;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .section-title {
+    @apply text-[10px] font-semibold text-ink-muted uppercase tracking-widest
+           px-3 pt-4 pb-1;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  /* Form */
+  .form-group { @apply flex flex-col gap-1; }
+  .divider    { @apply border-t border-surface-border my-3; }
+
+  /* Alert items */
+  .alert-item {
+    @apply flex items-start gap-3 py-3 border-b border-surface-border last:border-0;
+  }
+  .alert-icon {
+    @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
+  }
+
+  /* WhatsApp button */
+  .btn-whatsapp {
+    @apply bg-[#25D366] text-white px-3 py-1.5 rounded-btn text-xs font-medium
+           hover:bg-[#1da851] active:scale-[0.97]
+           transition-all duration-150 cursor-pointer flex items-center gap-1.5;
+  }
 }
 
-/* ─── Page transitions ───────────────────────────────────────────────────── */
+/* ─── Page transitions ────────────────────────────────────────────────────── */
 .page-enter {
   animation: pageEnter 0.18s ease-out;
 }
 
 @keyframes pageEnter {
   from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0);   }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Print styles ───────────────────────────────────────────────────────── */
+/* ─── Skeleton shimmer ────────────────────────────────────────────────────── */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f0eff8 0%,
+    #e8e6f4 50%,
+    #f0eff8 100%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* ─── Print styles ────────────────────────────────────────────────────────── */
 @media print {
-  .no-print  { display: none !important; }
-  .sidebar   { display: none !important; }
-  .topbar    { display: none !important; }
+  .no-print   { display: none !important; }
+  .sidebar    { display: none !important; }
+  .topbar     { display: none !important; }
   .print-only { display: block !important; }
-  body       { background: white; }
-  .meal-card { break-inside: avoid; }
-  @page      { margin: 20mm; }
+  body        { background: white; }
+  .meal-card  { break-inside: avoid; }
+  @page       { margin: 20mm; }
+}
+
+/* ─── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
