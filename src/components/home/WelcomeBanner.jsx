@@ -26,12 +26,12 @@ export default function WelcomeBanner() {
           Welcome back, Ramesh! Here&apos;s your gym summary for today.
         </p>
         <div className="flex flex-wrap gap-1.5 mt-2">
-          {gyms.map((gym, i) => (
+          {gyms.map((gym) => (
             <span
               key={gym.id}
               className="text-[10px] bg-white border border-primary-mid text-primary-dark px-2 py-0.5 rounded-full font-medium"
             >
-              {gym.name}
+              {gym.location || gym.name}
             </span>
           ))}
         </div>
