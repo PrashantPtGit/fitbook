@@ -4,12 +4,13 @@ import {
   ArrowLeft, Edit2, Phone, Calendar, User, MapPin, Heart,
   Activity, CreditCard, MessageCircle, Clock, Fingerprint,
 } from 'lucide-react'
-import { differenceInDays, format, parseISO, isValid } from 'date-fns'
+import { differenceInDays, format, parseISO, isValid, startOfMonth, subMonths } from 'date-fns'
 import toast from 'react-hot-toast'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import AppLayout from '../components/layout/AppLayout'
 import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
-import AttendanceCalendar from '../components/members/AttendanceCalendar'
+import AttendanceCalendar from '../components/attendance/AttendanceCalendar'
 import PaymentHistory from '../components/members/PaymentHistory'
 import { supabase, supabaseReady } from '../lib/supabase'
 import {
@@ -84,7 +85,7 @@ export default function MemberProfile() {
           .select('date, checked_in_at, source')
           .eq('member_id', id)
           .order('date', { ascending: false })
-          .limit(60),
+          .limit(200),
       ])
 
       if (memberRes.error) {
@@ -101,6 +102,28 @@ export default function MemberProfile() {
 
     fetchAll()
   }, [id, navigate])
+
+  // 6-month attendance chart data
+  const monthlyAttendance = useMemo(() => {
+    const now = new Date()
+    const months = {}
+    for (let i = 5; i >= 0; i--) {
+      const d   = subMonths(now, i)
+      const key = format(d, 'yyyy-MM')
+      months[key] = { label: format(d, 'MMM'), count: 0 }
+    }
+    attendance.forEach((a) => {
+      const key = a.date?.substring(0, 7)
+      if (key && months[key]) months[key].count++
+    })
+    return Object.entries(months).map(([key, v]) => ({ key, ...v }))
+  }, [attendance])
+
+  // This-month attendance count
+  const thisMonthKey     = format(new Date(), 'yyyy-MM')
+  const thisMonthCount   = attendance.filter((a) => a.date?.startsWith(thisMonthKey)).length
+  const daysInThisMonth  = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+  const thisMonthPct     = Math.round((thisMonthCount / daysInThisMonth) * 100)
 
   // Derived values
   const membership = useMemo(() => {
@@ -354,23 +377,79 @@ export default function MemberProfile() {
       {/* ── Tab: Attendance ── */}
       {activeTab === 'Attendance' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 card">
-            <AttendanceCalendar memberId={member.id} gymId={member.gym_id} />
+
+          {/* Left col: calendar + 6-month chart */}
+          <div className="lg:col-span-2 space-y-4">
+
+            {/* Calendar */}
+            <div className="card">
+              <AttendanceCalendar memberId={member.id} gymId={member.gym_id} />
+            </div>
+
+            {/* This month summary + 6-month bar chart */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-700">Attendance trend</h3>
+                <span className="text-xs text-gray-400">
+                  This month: <span className="font-semibold text-gray-700">{thisMonthCount} days</span>
+                  <span className="text-gray-400"> ({thisMonthPct}%)</span>
+                </span>
+              </div>
+
+              <ResponsiveContainer width="100%" height={120}>
+                <BarChart data={monthlyAttendance} margin={{ top: 4, right: 0, bottom: 0, left: -28 }}>
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#f3f4f6' }}
+                    content={({ active, payload, label }) =>
+                      active && payload?.length ? (
+                        <div className="bg-white border border-gray-100 rounded-btn px-2.5 py-1.5 shadow-sm">
+                          <p className="text-xs font-medium text-gray-700">{label}</p>
+                          <p className="text-xs text-gray-500">{payload[0].value} days attended</p>
+                        </div>
+                      ) : null
+                    }
+                  />
+                  <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                    {monthlyAttendance.map((entry, i) => (
+                      <Cell
+                        key={entry.key}
+                        fill={i === monthlyAttendance.length - 1 ? '#534AB7' : '#AFA9EC'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+
+              <p className="text-xs text-gray-400 mt-2 text-center">Last 6 months</p>
+            </div>
           </div>
 
+          {/* Right col: recent check-ins */}
           <div className="card">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Recent check-ins</h3>
             {attendance.length === 0 ? (
               <p className="text-sm text-gray-400 py-4 text-center">No attendance recorded</p>
             ) : (
               <div className="divide-y divide-gray-50">
-                {attendance.slice(0, 15).map((a, i) => (
-                  <div key={i} className="flex items-center justify-between py-2">
+                {attendance.slice(0, 10).map((a, i) => (
+                  <div key={i} className="flex items-center justify-between py-2.5">
                     <div>
                       <p className="text-sm text-gray-800">{formatDate(a.date)}</p>
-                      {a.checked_in_at && (
+                      {a.checked_in_at && isValid(parseISO(a.checked_in_at)) && (
                         <p className="text-xs text-gray-400">
-                          {format(parseISO(a.checked_in_at), 'hh:mm a')}
+                          {format(parseISO(a.checked_in_at), 'h:mm a')}
                         </p>
                       )}
                     </div>

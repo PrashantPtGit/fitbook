@@ -4,7 +4,7 @@ import { useGymStore } from '../store/useGymStore'
 
 export const markAttendance = async (memberId, gymId) => {
   const today = new Date().toISOString().split('T')[0]
-  
+
   const { data: existing } = await supabase
     .from('attendance')
     .select('id')
@@ -19,11 +19,11 @@ export const markAttendance = async (memberId, gymId) => {
   const { data, error } = await supabase
     .from('attendance')
     .insert({
-      member_id: memberId,
-      gym_id: gymId,
-      date: today,
-      checked_in_at: new Date().toISOString(),
-      source: 'manual'
+      member_id:      memberId,
+      gym_id:         gymId,
+      date:           today,
+      checked_in_at:  new Date().toISOString(),
+      source:         'manual',
     })
     .select()
     .single()
@@ -32,12 +32,14 @@ export const markAttendance = async (memberId, gymId) => {
 }
 
 export const useAttendance = () => {
-  const { activeGymId } = useGymStore()
+  const { activeGymId }                    = useGymStore()
   const { attendance, setAttendance, addAttendance } = useGymStore()
+
   const [todayAttendance, setTodayAttendance] = useState([])
-  const [weeklyData, setWeeklyData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [weeklyData,      setWeeklyData]      = useState([])
+  const [loading,         setLoading]         = useState(true)
+  const [error,           setError]           = useState(null)
+  const [isConnected,     setIsConnected]     = useState(false)
 
   useEffect(() => {
     if (!activeGymId) {
@@ -47,37 +49,48 @@ export const useAttendance = () => {
 
     const today = new Date().toISOString().split('T')[0]
 
-    const fetchAttendance = async () => {
+    async function fetchAttendance() {
       setLoading(true)
       try {
-        const { data, error } = await supabase
+        // Today's check-ins with member info
+        const { data, error: fetchErr } = await supabase
           .from('attendance')
           .select('*, members(name, member_code)')
           .eq('gym_id', activeGymId)
           .eq('date', today)
           .order('checked_in_at', { ascending: false })
 
-        if (error) throw error
+        if (fetchErr) throw fetchErr
         setTodayAttendance(data || [])
         setAttendance(data || [])
 
-        const weekly = []
+        // Weekly data — 7 days in parallel
+        const dates = []
         for (let i = 6; i >= 0; i--) {
-          const date = new Date()
-          date.setDate(date.getDate() - i)
-          const dateStr = date.toISOString().split('T')[0]
-          const dayName = date.toLocaleDateString('en-IN', { weekday: 'short' })
-
-          const { count } = await supabase
-            .from('attendance')
-            .select('*', { count: 'exact', head: true })
-            .eq('gym_id', activeGymId)
-            .eq('date', dateStr)
-
-          weekly.push({ date: dateStr, day: dayName, count: count || 0 })
+          const d = new Date()
+          d.setDate(d.getDate() - i)
+          dates.push({
+            dateStr: d.toISOString().split('T')[0],
+            dayName: d.toLocaleDateString('en-IN', { weekday: 'short' }),
+          })
         }
-        setWeeklyData(weekly)
 
+        const counts = await Promise.all(
+          dates.map(({ dateStr }) =>
+            supabase
+              .from('attendance')
+              .select('*', { count: 'exact', head: true })
+              .eq('gym_id', activeGymId)
+              .eq('date', dateStr)
+              .then(({ count }) => count || 0)
+          )
+        )
+
+        setWeeklyData(dates.map(({ dateStr, dayName }, i) => ({
+          date:  dateStr,
+          day:   dayName,
+          count: counts[i],
+        })))
       } catch (err) {
         setError(err.message)
       } finally {
@@ -87,34 +100,41 @@ export const useAttendance = () => {
 
     fetchAttendance()
 
-    // Realtime subscription — unique name per effect run avoids the
-    // "cannot add callbacks after subscribe()" error in React StrictMode,
-    // where effects fire twice and Supabase would otherwise return the same
-    // already-subscribed channel object when the name is reused.
-    const channelName = 'attendance-' + activeGymId + '-' + crypto.randomUUID()
+    // Unique channel name avoids StrictMode double-subscribe collision
+    const channelName = `attendance-${activeGymId}-${crypto.randomUUID()}`
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event:  'INSERT',
           schema: 'public',
-          table: 'attendance',
-          filter: 'gym_id=eq.' + activeGymId
+          table:  'attendance',
+          filter: `gym_id=eq.${activeGymId}`,
         },
-        (payload) => {
-          setTodayAttendance(prev => [payload.new, ...prev])
-          addAttendance(payload.new)
+        async (payload) => {
+          // Fetch member info so the list row is complete
+          const { data: memberData } = await supabase
+            .from('members')
+            .select('name, member_code')
+            .eq('id', payload.new.member_id)
+            .single()
+
+          const enriched = { ...payload.new, members: memberData || null }
+          setTodayAttendance((prev) => [enriched, ...prev])
+          addAttendance(enriched)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        setIsConnected(status === 'SUBSCRIBED')
+      })
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [activeGymId])
 
-  return { todayAttendance, weeklyData, loading, error }
+  return { todayAttendance, weeklyData, loading, error, isConnected }
 }
 
 export default useAttendance
