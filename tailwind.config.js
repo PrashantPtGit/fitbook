@@ -1,6 +1,17 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
+
+  // Safelist: brand color utilities used only in CSS @apply (not scanned from JSX by JIT)
+  safelist: [
+    {
+      pattern: /^(bg|text|border)-(primary|success|danger|warning|info|gym1|gym2|gym3)(-(light|mid|dark|darker))?$/,
+      variants: ['hover', 'focus', 'active'],
+    },
+    'animate-badge-pulse', 'animate-shimmer', 'animate-slide-in-top',
+    'animate-fade-in', 'animate-count-up',
+  ],
+
   theme: {
     extend: {
       colors: {

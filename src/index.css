@@ -7,10 +7,9 @@
   * { box-sizing: border-box; }
 
   body {
-    @apply bg-surface-app text-ink font-sans antialiased;
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
   }
 
-  /* Heading elements use display font */
   h1, h2, h3, h4, h5 {
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
@@ -19,54 +18,68 @@
 /* ─── Component classes ───────────────────────────────────────────────────── */
 @layer components {
 
-  /* Buttons */
+  /* Buttons — rounded-btn (8px) inlined */
   .btn-primary {
-    @apply bg-primary text-white px-4 py-2 rounded-btn text-sm font-medium
+    @apply bg-primary text-white px-4 py-2 text-sm font-medium
            hover:bg-primary-dark active:scale-[0.97]
-           transition-all duration-150 cursor-pointer shadow-sm;
+           transition-all duration-150 cursor-pointer;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
   .btn-secondary {
-    @apply bg-white text-ink border border-surface-border px-4 py-2 rounded-btn text-sm
-           hover:bg-surface-app hover:border-primary-mid active:scale-[0.97]
+    @apply bg-white text-gray-900 border border-gray-100 px-4 py-2 text-sm
+           hover:bg-gray-50 hover:border-primary-mid active:scale-[0.97]
            transition-all duration-150 cursor-pointer;
+    border-radius: 8px;
   }
   .btn-success {
-    @apply bg-success text-white px-4 py-2 rounded-btn text-sm font-medium
+    @apply bg-success text-white px-4 py-2 text-sm font-medium
            hover:opacity-90 active:scale-[0.97] transition-all duration-150 cursor-pointer;
+    border-radius: 8px;
   }
   .btn-danger {
-    @apply bg-danger text-white px-4 py-2 rounded-btn text-sm font-medium
+    @apply bg-danger text-white px-4 py-2 text-sm font-medium
            hover:bg-danger-dark active:scale-[0.97] transition-all duration-150 cursor-pointer;
+    border-radius: 8px;
   }
 
-  /* Cards */
+  /* Cards — rounded-card (14px) + shadow-card inlined */
   .card {
-    @apply bg-white border border-surface-border rounded-card p-4 shadow-card;
+    @apply bg-white border border-gray-100 p-4;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(83,74,183,0.08);
   }
 
-  /* Inputs */
+  /* Inputs — rounded-btn (8px) + focus shadow inlined */
   .input {
-    @apply bg-surface-app border border-surface-border rounded-btn px-3 py-2 text-sm w-full
-           text-ink placeholder:text-ink-muted
-           outline-none focus:border-primary focus:shadow-focus
+    @apply bg-gray-50 border border-gray-100 px-3 py-2 text-sm w-full
+           text-gray-900 placeholder:text-gray-400
+           outline-none focus:border-primary
            transition-all duration-150;
+    border-radius: 8px;
   }
+  .input:focus {
+    box-shadow: 0 0 0 3px rgba(83,74,183,0.12);
+  }
+
   .select {
-    @apply bg-surface-app border border-surface-border rounded-btn px-3 py-2 text-sm w-full
-           text-ink outline-none focus:border-primary cursor-pointer;
+    @apply bg-gray-50 border border-gray-100 px-3 py-2 text-sm w-full
+           text-gray-900 outline-none focus:border-primary cursor-pointer;
+    border-radius: 8px;
   }
+
   .label {
-    @apply text-xs text-ink-secondary font-medium mb-1 block;
+    @apply text-xs text-gray-500 font-medium mb-1 block;
   }
 
   /* Page header */
   .page-title {
-    @apply text-base font-semibold text-ink;
+    @apply text-base font-semibold text-gray-900;
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
-  .page-sub   { @apply text-xs text-ink-muted mt-0.5; }
+  .page-sub { @apply text-xs text-gray-400 mt-0.5; }
 
-  /* Status badges — with colored dot */
+  /* Status badges — colored dot */
   .badge-green {
     @apply inline-flex items-center gap-1.5 text-[11px] font-medium
            bg-success-light text-success-dark px-2.5 py-0.5 rounded-full;
@@ -98,50 +111,55 @@
   .badge-gray::before   { content: ''; @apply block w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0; }
 
   /* Metric cards */
-  .metric-card  { @apply bg-surface-app rounded-btn p-3; }
-  .metric-label { @apply text-xs text-ink-muted mb-1; }
+  .metric-card  { @apply bg-gray-50 p-3; border-radius: 8px; }
+  .metric-label { @apply text-xs text-gray-400 mb-1; }
   .metric-value {
-    @apply text-xl font-medium text-ink;
+    @apply text-xl font-medium text-gray-900;
     font-family: 'JetBrains Mono', monospace;
   }
-  .metric-sub   { @apply text-xs mt-1; }
+  .metric-sub { @apply text-xs mt-1; }
 
   /* Tables */
   .table-header {
-    @apply text-left px-3 py-2.5 text-[10px] font-semibold text-ink-secondary
+    @apply text-left px-3 py-2.5 text-[10px] font-semibold text-gray-500
            uppercase tracking-wider border-b-2 border-primary-light;
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
   .table-cell {
-    @apply px-3 py-3 text-sm text-ink border-b border-surface-border;
+    @apply px-3 py-3 text-sm text-gray-900 border-b border-gray-100;
   }
 
-  /* Nav items */
+  /* Nav items — rounded-r-btn (right 8px) + shadow-inset-l inlined */
   .nav-item {
-    @apply flex items-center gap-2.5 px-3 py-2 text-sm text-ink-secondary
+    @apply flex items-center gap-2.5 px-3 py-2 text-sm text-gray-500
            cursor-pointer border-l-2 border-transparent
-           hover:bg-primary-light/40 hover:text-primary-dark
-           transition-all duration-150 rounded-r-btn;
+           hover:bg-primary-light hover:text-primary-dark
+           transition-all duration-150;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
   }
   .nav-item-active {
     @apply flex items-center gap-2.5 px-3 py-2 text-sm font-medium
            text-primary-dark bg-primary-light border-l-2 border-primary
-           cursor-pointer shadow-inset-l rounded-r-btn;
+           cursor-pointer;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    box-shadow: inset 3px 0 0 #534AB7;
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
   .section-title {
-    @apply text-[10px] font-semibold text-ink-muted uppercase tracking-widest
+    @apply text-[10px] font-semibold text-gray-400 uppercase tracking-widest
            px-3 pt-4 pb-1;
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
   /* Form */
   .form-group { @apply flex flex-col gap-1; }
-  .divider    { @apply border-t border-surface-border my-3; }
+  .divider    { @apply border-t border-gray-100 my-3; }
 
   /* Alert items */
   .alert-item {
-    @apply flex items-start gap-3 py-3 border-b border-surface-border last:border-0;
+    @apply flex items-start gap-3 py-3 border-b border-gray-100 last:border-0;
   }
   .alert-icon {
     @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
@@ -149,9 +167,10 @@
 
   /* WhatsApp button */
   .btn-whatsapp {
-    @apply bg-[#25D366] text-white px-3 py-1.5 rounded-btn text-xs font-medium
+    @apply bg-[#25D366] text-white px-3 py-1.5 text-xs font-medium
            hover:bg-[#1da851] active:scale-[0.97]
            transition-all duration-150 cursor-pointer flex items-center gap-1.5;
+    border-radius: 8px;
   }
 }
 
@@ -167,12 +186,7 @@
 
 /* ─── Skeleton shimmer ────────────────────────────────────────────────────── */
 .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    #f0eff8 0%,
-    #e8e6f4 50%,
-    #f0eff8 100%
-  );
+  background: linear-gradient(90deg, #f0eff8 0%, #e8e6f4 50%, #f0eff8 100%);
   background-size: 400px 100%;
   animation: shimmer 1.6s linear infinite;
 }
