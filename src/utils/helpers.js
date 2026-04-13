@@ -100,6 +100,18 @@ export function buildBirthdayMessage(memberName, gymName) {
   return `🎂 Happy Birthday, ${memberName}!\n\nWishing you a fantastic birthday from all of us at ${gymName}. Keep up the great work on your fitness journey! 💪🎉\n- FitBook Team`
 }
 
+export function buildInactiveMessage(memberName, gymName, dayCount = 10) {
+  return `Hey ${memberName}! We miss you at ${gymName}. It has been ${dayCount} days since your last visit. Come back strong 💪 Your membership is still active. See you soon! - FitBook`
+}
+
+export function buildHolidayMessage(gymName, date, holiday) {
+  return `${gymName} will be closed on ${date} for ${holiday}. We will reopen the next day. Thank you for your understanding. - FitBook Team`
+}
+
+export function buildOfferMessage(gymName, planName, offerPrice, originalPrice, validTill) {
+  return `Special offer at ${gymName}! ${planName} membership at just ₹${offerPrice} (original ₹${originalPrice}). Valid till ${validTill}. Limited spots available. Contact us now! - FitBook`
+}
+
 // ─── Date helpers ────────────────────────────────────────────────────────────
 export function todayISO() {
   return format(new Date(), 'yyyy-MM-dd')
