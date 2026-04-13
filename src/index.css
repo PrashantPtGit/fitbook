@@ -35,3 +35,13 @@
   .form-group    { @apply flex flex-col gap-1; }
   .divider       { @apply border-t border-gray-100 my-3; }
 }
+
+@media print {
+  .no-print  { display: none !important; }
+  .sidebar   { display: none !important; }
+  .topbar    { display: none !important; }
+  .print-only { display: block !important; }
+  body       { background: white; }
+  .meal-card { break-inside: avoid; }
+  @page      { margin: 20mm; }
+}

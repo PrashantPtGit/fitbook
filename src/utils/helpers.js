@@ -46,17 +46,43 @@ export function generateMemberCode(gymName = '', existingCount = 0) {
   return `MBR-${num}`
 }
 
-// ─── BMI ─────────────────────────────────────────────────────────────────────
-export function calculateBMI(weightKg, heightCm) {
+// ─── BMI (Indian thresholds) ──────────────────────────────────────────────────
+const ACTIVITY_MULTIPLIERS = {
+  sedentary:   1.2,
+  light:       1.375,
+  moderate:    1.55,
+  active:      1.725,
+  very_active: 1.9,
+}
+
+export function calculateBMI(weightKg, heightCm, age = 25, gender = 'male', activityLevel = 'moderate') {
   if (!weightKg || !heightCm) return null
   const heightM = heightCm / 100
-  const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1))
-  let category, color
-  if (bmi < 18.5)      { category = 'Underweight'; color = 'text-blue-500' }
-  else if (bmi < 23)   { category = 'Normal';      color = 'text-success'  }
-  else if (bmi < 27.5) { category = 'Overweight';  color = 'text-warning'  }
-  else                 { category = 'Obese';        color = 'text-danger'   }
-  return { bmi, category, color }
+  const bmi     = parseFloat((weightKg / (heightM * heightM)).toFixed(1))
+
+  let category, color, bgColor
+  if (bmi < 18.5)      { category = 'Underweight';  color = 'text-blue-500';    bgColor = 'bg-blue-500'    }
+  else if (bmi < 23)   { category = 'Normal weight'; color = 'text-success';     bgColor = 'bg-success'     }
+  else if (bmi < 25)   { category = 'Overweight';    color = 'text-warning';     bgColor = 'bg-warning'     }
+  else if (bmi < 30)   { category = 'Obese Class I'; color = 'text-orange-500';  bgColor = 'bg-orange-500'  }
+  else                 { category = 'Obese Class II'; color = 'text-danger';      bgColor = 'bg-danger'      }
+
+  // Ideal weight: BMI 22.5 × height²  ±5 kg
+  const idealMid    = parseFloat((22.5 * heightM * heightM).toFixed(1))
+  const idealWeightMin = Math.round(idealMid - 5)
+  const idealWeightMax = Math.round(idealMid + 5)
+
+  // BMR (Mifflin-St Jeor)
+  const bmr = gender === 'female'
+    ? 10 * weightKg + 6.25 * heightCm - 5 * age - 161
+    : 10 * weightKg + 6.25 * heightCm - 5 * age + 5
+
+  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] || 1.55
+  const tdee       = Math.round(bmr * multiplier)
+  const protein    = Math.round(weightKg * 1.6)
+  const water      = (weightKg * 35 / 1000).toFixed(1)
+
+  return { bmi, category, color, bgColor, idealWeightMin, idealWeightMax, bmr: Math.round(bmr), tdee, protein, water }
 }
 
 // ─── Initials ────────────────────────────────────────────────────────────────
