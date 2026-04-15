@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNavigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import Button from '../components/ui/Button'
@@ -16,6 +17,7 @@ const locations = ['MLC Mall', 'New Shimla', 'Location 3']
 
 export default function Login() {
   const [loading, setLoading] = useState(false)
+  const [showPwd, setShowPwd] = useState(false)
   const navigate = useNavigate()
 
   const {
@@ -66,13 +68,22 @@ export default function Login() {
 
             <div className="form-group">
               <label className="label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                className={`input ${errors.password ? 'border-danger' : ''}`}
-                {...register('password')}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPwd ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  className={`input pr-10 ${errors.password ? 'border-danger' : ''}`}
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
               {errors.password && (
                 <p className="text-xs text-danger mt-0.5">{errors.password.message}</p>
               )}

@@ -1,10 +1,13 @@
-import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, CalendarCheck,
-  MessageSquare, Activity, Salad, BarChart2, X,
+  MessageSquare, Activity, Salad, BarChart2, X, LogOut,
 } from 'lucide-react'
 import Avatar from '../ui/Avatar'
+import ConfirmModal from '../ui/ConfirmModal'
 import { useGymStore } from '../../store/useGymStore'
+import { supabase } from '../../lib/supabase'
 
 // Each nav item has a unique accent color dot per design spec
 const DAILY = [
@@ -44,7 +47,18 @@ function NavItem({ to, label, icon: Icon, dot, onNavigate }) {
 export default function Sidebar() {
   const sidebarOpen    = useGymStore((s) => s.sidebarOpen)
   const setSidebarOpen = useGymStore((s) => s.setSidebarOpen)
-  const close = () => setSidebarOpen(false)
+  const close          = () => setSidebarOpen(false)
+  const navigate       = useNavigate()
+  const [logoutOpen, setLogoutOpen] = useState(false)
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    useGymStore.setState({
+      gyms: [], activeGymId: null, activeGym: null,
+      members: [], payments: [], attendance: [],
+    })
+    navigate('/login')
+  }
 
   return (
     <>
@@ -99,19 +113,40 @@ export default function Sidebar() {
         </nav>
 
         {/* Owner profile */}
-        <div className="px-3 py-3 border-t border-surface-border flex items-center gap-2.5">
-          <Avatar name="Ramesh Kumar" size="sm" gymIndex={0} />
-          <div className="min-w-0 flex-1">
-            <p
-              className="text-[13px] font-semibold text-ink truncate leading-tight"
-              style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
-            >
-              Ramesh Kumar
-            </p>
-            <p className="text-[11px] text-ink-muted">Owner</p>
+        <div className="border-t border-surface-border">
+          <div className="px-3 py-3 flex items-center gap-2.5">
+            <Avatar name="Ramesh Kumar" size="sm" gymIndex={0} />
+            <div className="min-w-0 flex-1">
+              <p
+                className="text-[13px] font-semibold text-ink truncate leading-tight"
+                style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
+              >
+                Ramesh Kumar
+              </p>
+              <p className="text-[11px] text-ink-muted">Owner</p>
+            </div>
           </div>
+
+          {/* Logout */}
+          <button
+            onClick={() => setLogoutOpen(true)}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-danger hover:bg-danger-light transition-colors"
+          >
+            <LogOut size={15} />
+            Logout
+          </button>
         </div>
       </aside>
+
+      <ConfirmModal
+        isOpen={logoutOpen}
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={handleLogout}
+        title="Log out?"
+        message="You will be signed out of FitBook."
+        confirmText="Log out"
+        danger
+      />
     </>
   )
 }

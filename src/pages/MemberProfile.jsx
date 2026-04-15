@@ -12,6 +12,7 @@ import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
 import AttendanceCalendar from '../components/attendance/AttendanceCalendar'
 import PaymentHistory from '../components/members/PaymentHistory'
+import EditMemberModal from '../components/members/EditMemberModal'
 import { supabase, supabaseReady } from '../lib/supabase'
 import {
   getMembershipStatus, formatDate, formatCurrency, daysFromNow,
@@ -59,6 +60,7 @@ export default function MemberProfile() {
   const [attendance,   setAttendance]   = useState([])
   const [loading,      setLoading]      = useState(true)
   const [activeTab,    setActiveTab]    = useState('Overview')
+  const [editOpen,     setEditOpen]     = useState(false)
 
   // Fetch member + related data
   useEffect(() => {
@@ -224,7 +226,7 @@ export default function MemberProfile() {
             </button>
           )}
           <button
-            onClick={() => toast('Edit coming soon')}
+            onClick={() => setEditOpen(true)}
             className="btn-secondary text-sm flex items-center gap-1.5"
           >
             <Edit2 size={14} /> Edit member
@@ -469,6 +471,24 @@ export default function MemberProfile() {
         <div className="card">
           <PaymentHistory memberId={member.id} gymId={member.gym_id} />
         </div>
+      )}
+
+      {/* Edit modal */}
+      {editOpen && (
+        <EditMemberModal
+          member={member}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => {
+            setEditOpen(false)
+            // Refetch updated member data
+            supabase
+              .from('members')
+              .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
+              .eq('id', id)
+              .single()
+              .then(({ data }) => { if (data) setMember(data) })
+          }}
+        />
       )}
     </AppLayout>
   )
