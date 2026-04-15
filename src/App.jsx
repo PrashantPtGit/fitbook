@@ -17,6 +17,7 @@ const Messages     = lazy(() => import('./pages/Messages'))
 const Health       = lazy(() => import('./pages/Health'))
 const Diet         = lazy(() => import('./pages/Diet'))
 const Reports      = lazy(() => import('./pages/Reports'))
+const Settings     = lazy(() => import('./pages/Settings'))
 const NotFound     = lazy(() => import('./pages/NotFound'))
 
 const PageLoader = () => (
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/health"      element={<ProtectedRoute><Health /></ProtectedRoute>} />
           <Route path="/diet"        element={<ProtectedRoute><Diet /></ProtectedRoute>} />
           <Route path="/reports"     element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/settings"    element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
           <Route path="/404"         element={<NotFound />} />
           <Route path="*"            element={<NotFound />} />
