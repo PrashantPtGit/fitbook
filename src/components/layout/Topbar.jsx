@@ -111,7 +111,7 @@ function GlobalSearch({ gymId }) {
   const doSearch = useCallback(async (q) => {
     if (!q.trim() || !supabaseReady) { setResults([]); setBusy(false); return }
     setBusy(true)
-    let qb = supabase.from('members').select('id, name, phone, member_code, gym_id').or(`name.ilike.%${q}%,phone.ilike.%${q}%`).limit(6)
+    let qb = supabase.from('members').select('id, name, phone, member_code, gym_id').or(`name.ilike.%${q}%,phone.ilike.%${q}%`).neq('status', 'deleted').limit(6)
     if (gymId) qb = qb.eq('gym_id', gymId)
     const { data } = await qb
     setResults(data || [])

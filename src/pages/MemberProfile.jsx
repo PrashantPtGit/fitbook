@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Edit2, Phone, Calendar, User, MapPin, Heart,
+  ArrowLeft, Edit2, Trash2, PauseCircle, PlayCircle,
+  Phone, Calendar, User, MapPin, Heart,
   Activity, CreditCard, MessageCircle, Clock, Fingerprint,
 } from 'lucide-react'
 import { differenceInDays, format, parseISO, isValid, startOfMonth, subMonths } from 'date-fns'
@@ -13,6 +14,7 @@ import Badge from '../components/ui/Badge'
 import AttendanceCalendar from '../components/attendance/AttendanceCalendar'
 import PaymentHistory from '../components/members/PaymentHistory'
 import EditMemberModal from '../components/members/EditMemberModal'
+import ConfirmModal from '../components/ui/ConfirmModal'
 import { supabase, supabaseReady } from '../lib/supabase'
 import {
   getMembershipStatus, formatDate, formatCurrency, daysFromNow,
@@ -61,6 +63,9 @@ export default function MemberProfile() {
   const [loading,      setLoading]      = useState(true)
   const [activeTab,    setActiveTab]    = useState('Overview')
   const [editOpen,     setEditOpen]     = useState(false)
+  const [deleteModal,  setDeleteModal]  = useState(false)
+  const [pauseModal,   setPauseModal]   = useState(false)
+  const [actioning,    setActioning]    = useState(false)
 
   // Fetch member + related data
   useEffect(() => {
@@ -171,6 +176,29 @@ export default function MemberProfile() {
     window.open(`https://wa.me/91${member.phone.replace(/\D/g, '')}?text=${msg}`, '_blank')
   }
 
+  async function handleDelete() {
+    setActioning(true)
+    const { error } = await supabase.from('members').update({ status: 'deleted' }).eq('id', member.id)
+    setActioning(false)
+    if (error) { toast.error(error.message); return }
+    toast.success(`${member.name} has been removed`)
+    navigate('/members')
+  }
+
+  async function handlePauseResume() {
+    const isPaused  = member.status === 'paused'
+    const newStatus = isPaused ? 'active' : 'paused'
+    setActioning(true)
+    await Promise.all([
+      supabase.from('members').update({ status: newStatus }).eq('id', member.id),
+      membership && supabase.from('memberships').update({ status: newStatus }).eq('id', membership.id),
+    ])
+    setActioning(false)
+    setMember((m) => ({ ...m, status: newStatus }))
+    setPauseModal(false)
+    toast.success(isPaused ? `${member.name} reactivated` : `${member.name} paused`)
+  }
+
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -208,7 +236,10 @@ export default function MemberProfile() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-lg font-semibold text-gray-900">{member.name}</h2>
-            {memStatus && <Badge variant={memStatus.badgeVariant}>{memStatus.label}</Badge>}
+            {member.status === 'paused'
+              ? <span className="badge-gray">Paused</span>
+              : memStatus && <Badge variant={memStatus.badgeVariant}>{memStatus.label}</Badge>
+            }
           </div>
           <p className="text-xs text-gray-400 mt-0.5">{member.member_code} · {member.gyms?.name}</p>
           {member.batch_timing && (
@@ -229,7 +260,13 @@ export default function MemberProfile() {
             onClick={() => setEditOpen(true)}
             className="btn-secondary text-sm flex items-center gap-1.5"
           >
-            <Edit2 size={14} /> Edit member
+            <Edit2 size={14} /> Edit
+          </button>
+          <button
+            onClick={() => setDeleteModal(true)}
+            className="px-3 py-1.5 text-sm text-danger border border-danger-light bg-danger-light hover:bg-danger hover:text-white rounded-btn transition-colors flex items-center gap-1.5"
+          >
+            <Trash2 size={14} /> Delete
           </button>
         </div>
       </div>
@@ -310,6 +347,26 @@ export default function MemberProfile() {
                         : `Expired ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''} ago`}
                     </p>
                   )}
+
+                  {/* Pause / Resume */}
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {member.status === 'paused' ? (
+                      <button
+                        onClick={handlePauseResume}
+                        disabled={actioning}
+                        className="flex items-center gap-1.5 text-xs text-success-dark bg-success-light hover:bg-success hover:text-white px-3 py-1.5 rounded-btn transition-colors disabled:opacity-60"
+                      >
+                        <PlayCircle size={13} /> Resume membership
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setPauseModal(true)}
+                        className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-btn transition-colors"
+                      >
+                        <PauseCircle size={13} /> Pause membership
+                      </button>
+                    )}
+                  </div>
                 </>
               ) : (
                 <p className="text-sm text-gray-400">No active membership</p>
@@ -472,6 +529,27 @@ export default function MemberProfile() {
           <PaymentHistory memberId={member.id} gymId={member.gym_id} />
         </div>
       )}
+
+      {/* Delete confirm */}
+      <ConfirmModal
+        isOpen={deleteModal}
+        onCancel={() => setDeleteModal(false)}
+        onConfirm={handleDelete}
+        title={`Delete ${member.name}?`}
+        message="This cannot be undone. The member will be hidden from all lists."
+        confirmText={actioning ? 'Deleting…' : 'Delete'}
+        danger
+      />
+
+      {/* Pause confirm */}
+      <ConfirmModal
+        isOpen={pauseModal}
+        onCancel={() => setPauseModal(false)}
+        onConfirm={handlePauseResume}
+        title={`Pause ${member.name}'s membership?`}
+        message="They will not be counted as active. You can resume anytime."
+        confirmText={actioning ? 'Pausing…' : 'Pause'}
+      />
 
       {/* Edit modal */}
       {editOpen && (

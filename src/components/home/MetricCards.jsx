@@ -91,9 +91,9 @@ export default function MetricCards() {
       const [activeRes, newRes, attRes, totalRes, expiringRes, revRes, lastRevRes] =
         await Promise.all([
           supabase.from('members').select('*',{count:'exact',head:true}).eq('gym_id',activeGymId).eq('status','active'),
-          supabase.from('members').select('*',{count:'exact',head:true}).eq('gym_id',activeGymId).gte('created_at',monthStart).lte('created_at',monthEnd+'T23:59:59'),
+          supabase.from('members').select('*',{count:'exact',head:true}).eq('gym_id',activeGymId).neq('status','deleted').gte('created_at',monthStart).lte('created_at',monthEnd+'T23:59:59'),
           supabase.from('attendance').select('*',{count:'exact',head:true}).eq('gym_id',activeGymId).eq('date',today),
-          supabase.from('members').select('*',{count:'exact',head:true}).eq('gym_id',activeGymId),
+          supabase.from('members').select('*',{count:'exact',head:true}).eq('gym_id',activeGymId).neq('status','deleted'),
           supabase.from('memberships').select('plans(price)').eq('gym_id',activeGymId).eq('status','active').gte('end_date',today).lte('end_date',in7),
           supabase.from('payments').select('amount').eq('gym_id',activeGymId).gte('payment_date',monthStart).lte('payment_date',monthEnd),
           supabase.from('payments').select('amount').eq('gym_id',activeGymId).gte('payment_date',lastMonthStart).lte('payment_date',lastMonthEnd),

@@ -27,6 +27,7 @@ export function useMembersHook() {
           trainers(name)
         `)
         .eq('gym_id', activeGymId)
+        .neq('status', 'deleted')
         .order('created_at', { ascending: false })
 
       if (err) throw err
@@ -52,6 +53,7 @@ export async function fetchAllMembers(gymId) {
     .from('members')
     .select('*, memberships!inner(*, plans(name, duration_days, price)), trainers(name)')
     .eq('gym_id', gymId)
+    .neq('status', 'deleted')
     .order('created_at', { ascending: false })
   if (error) throw error
   return data || []
