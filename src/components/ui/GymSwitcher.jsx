@@ -13,7 +13,16 @@ export default function GymSwitcher() {
   const { gyms, activeGymId, activeGym, setActiveGym } = useActiveGym()
   const userRole = useGymStore(useShallow((s) => s.userRole))
 
-  // co_owner: show a static pill (no switcher)
+  // Must be above any conditional return — Rules of Hooks
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // co_owner: static locked pill, no dropdown
   if (userRole === 'co_owner') {
     const gymIndex = gyms.findIndex((g) => g.id === activeGymId)
     return (
@@ -26,14 +35,6 @@ export default function GymSwitcher() {
       </div>
     )
   }
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
 
   const label = activeGym ? activeGym.name : 'All Gyms'
   const activeIndex = activeGymId
