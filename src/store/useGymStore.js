@@ -41,11 +41,26 @@ export const useGymStore = create((set) => ({
   settings: {},
   setSettings: (settings) => set({ settings }),
 
+  // ROLE SLICE
+  userRole:    null,   // 'main_admin' | 'co_owner' | 'member'
+  userGymId:   null,   // locked gym for co_owner
+  userName:    null,   // display name from user_roles table
+  roleLoading: true,
+  setUserRole: (role, gymId, name) =>
+    set({ userRole: role, userGymId: gymId, userName: name, roleLoading: false }),
+
   // UI SLICE
   loading: false,
   setLoading: (loading) => set({ loading }),
   sidebarOpen: true,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  // Full reset on logout
+  resetStore: () => set({
+    gyms: [], activeGymId: null, activeGym: null,
+    members: [], payments: [], attendance: [], settings: {},
+    userRole: null, userGymId: null, userName: null, roleLoading: true,
+  }),
 }))
 
 export const useActiveGym = () =>

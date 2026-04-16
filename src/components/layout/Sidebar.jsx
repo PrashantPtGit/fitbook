@@ -7,6 +7,7 @@ import {
 import Avatar from '../ui/Avatar'
 import ConfirmModal from '../ui/ConfirmModal'
 import { useGymStore } from '../../store/useGymStore'
+import { useRole } from '../../hooks/useRole'
 import { supabase } from '../../lib/supabase'
 
 // Each nav item has a unique accent color dot per design spec
@@ -51,13 +52,11 @@ export default function Sidebar() {
   const close          = () => setSidebarOpen(false)
   const navigate       = useNavigate()
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const { userName, userRole } = useRole()
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    useGymStore.setState({
-      gyms: [], activeGymId: null, activeGym: null,
-      members: [], payments: [], attendance: [],
-    })
+    useGymStore.getState().resetStore()
     navigate('/login')
   }
 
@@ -116,15 +115,17 @@ export default function Sidebar() {
         {/* Owner profile */}
         <div className="border-t border-surface-border">
           <div className="px-3 py-3 flex items-center gap-2.5">
-            <Avatar name="Ramesh Kumar" size="sm" gymIndex={0} />
+            <Avatar name={userName || 'Owner'} size="sm" gymIndex={0} />
             <div className="min-w-0 flex-1">
               <p
                 className="text-[13px] font-semibold text-ink truncate leading-tight"
                 style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
               >
-                Ramesh Kumar
+                {userName || 'Owner'}
               </p>
-              <p className="text-[11px] text-ink-muted">Owner</p>
+              <p className="text-[11px] text-ink-muted">
+                {userRole === 'main_admin' ? 'Main Admin' : 'Co-owner'}
+              </p>
             </div>
           </div>
 

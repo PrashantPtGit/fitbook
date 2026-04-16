@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import GymSwitcher from '../ui/GymSwitcher'
 import Avatar from '../ui/Avatar'
 import { useGymStore } from '../../store/useGymStore'
+import { useRole } from '../../hooks/useRole'
 import { supabase, supabaseReady } from '../../lib/supabase'
 import { todayISO } from '../../utils/helpers'
 import { format, parseISO } from 'date-fns'
@@ -195,6 +196,7 @@ function GlobalSearch({ gymId }) {
 export default function Topbar({ pageTitle = '', pageSubtitle = '' }) {
   const setSidebarOpen = useGymStore((s) => s.setSidebarOpen)
   const activeGymId    = useGymStore((s) => s.activeGymId)
+  const { userName }   = useRole()
 
   return (
     <header
@@ -224,7 +226,7 @@ export default function Topbar({ pageTitle = '', pageSubtitle = '' }) {
       <div className="flex items-center gap-0.5 shrink-0">
         <GlobalSearch gymId={activeGymId} />
         <BellDropdown gymId={activeGymId} />
-        <Avatar name="Ramesh Kumar" size="sm" gymIndex={0} />
+        <Avatar name={userName || 'Owner'} size="sm" gymIndex={0} />
       </div>
     </header>
   )

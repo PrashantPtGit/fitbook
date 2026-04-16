@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady } from '../lib/supabase'
+import { useGymStore } from '../store/useGymStore'
 
 export function useAuth() {
   const [session, setSession] = useState(null)
@@ -26,6 +27,7 @@ export function useAuth() {
         setSession(session)
         setUser(session?.user ?? null)
         if (event === 'SIGNED_OUT' || !session) {
+          useGymStore.getState().resetStore()
           navigate('/login')
         }
       }

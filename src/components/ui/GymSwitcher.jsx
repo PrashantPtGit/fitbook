@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
-import { useActiveGym } from '../../store/useGymStore'
+import { useActiveGym, useGymStore } from '../../store/useGymStore'
+import { useShallow } from 'zustand/react/shallow'
 import clsx from 'clsx'
 
 const gymDotColors = ['bg-gym1', 'bg-gym2', 'bg-gym3']
@@ -10,6 +11,21 @@ export default function GymSwitcher() {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const { gyms, activeGymId, activeGym, setActiveGym } = useActiveGym()
+  const userRole = useGymStore(useShallow((s) => s.userRole))
+
+  // co_owner: show a static pill (no switcher)
+  if (userRole === 'co_owner') {
+    const gymIndex = gyms.findIndex((g) => g.id === activeGymId)
+    return (
+      <div className={clsx(
+        'flex items-center gap-2 px-3 py-1.5 rounded-btn border text-sm',
+        'border-primary bg-primary-light text-primary-dark cursor-default select-none'
+      )}>
+        <span className={clsx('h-2 w-2 rounded-full', gymIndex >= 0 ? ['bg-gym1','bg-gym2','bg-gym3'][gymIndex % 3] : 'bg-gym1')} />
+        <span className="font-medium">{activeGym?.name || 'My Gym'}</span>
+      </div>
+    )
+  }
 
   useEffect(() => {
     function handleClick(e) {

@@ -4,6 +4,7 @@ import WelcomeBanner      from '../components/home/WelcomeBanner'
 import SingleGymDashboard from '../components/home/SingleGymDashboard'
 import AllGymsDashboard   from '../components/home/AllGymsDashboard'
 import { useActiveGym }   from '../store/useGymStore'
+import { useRole }        from '../hooks/useRole'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -14,7 +15,9 @@ function getGreeting() {
 
 export default function Home() {
   const { activeGymId, activeGym } = useActiveGym()
+  const { userName } = useRole()
   const today = format(new Date(), 'EEEE, d MMMM yyyy')
+  const firstName = userName ? userName.split(' ')[0] : 'there'
 
   return (
     <AppLayout
@@ -29,7 +32,7 @@ export default function Home() {
             className="text-lg font-semibold text-ink"
             style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
           >
-            {getGreeting()}, Ramesh 👋
+            {getGreeting()}, {firstName} 👋
           </p>
           <p className="text-sm text-ink-muted">{today}</p>
         </div>

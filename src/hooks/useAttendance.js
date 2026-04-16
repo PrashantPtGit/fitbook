@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useGymStore } from '../store/useGymStore'
+import { useShallow } from 'zustand/react/shallow'
 
 export const markAttendance = async (memberId, gymId) => {
   const today = new Date().toISOString().split('T')[0]
@@ -32,8 +33,14 @@ export const markAttendance = async (memberId, gymId) => {
 }
 
 export const useAttendance = () => {
-  const { activeGymId }                    = useGymStore()
-  const { attendance, setAttendance, addAttendance } = useGymStore()
+  const { activeGymId, attendance, setAttendance, addAttendance } = useGymStore(
+    useShallow((s) => ({
+      activeGymId:   s.activeGymId,
+      attendance:    s.attendance,
+      setAttendance: s.setAttendance,
+      addAttendance: s.addAttendance,
+    }))
+  )
 
   const [todayAttendance, setTodayAttendance] = useState([])
   const [weeklyData,      setWeeklyData]      = useState([])

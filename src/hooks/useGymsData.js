@@ -11,15 +11,16 @@ const DEV_GYMS = [
 
 export function useGymsData() {
   const [loading, setLoading] = useState(true)
-  const [error, setError]   = useState(null)
-  const { gyms, setGyms, activeGymId, setActiveGym, setSettings } = useGymStore.getState()
+  const [error,   setError]   = useState(null)
 
   useEffect(() => {
     if (!supabaseReady) {
+      const { gyms } = useGymStore.getState()
       if (gyms.length === 0) {
         useGymStore.getState().setGyms(DEV_GYMS)
         useGymStore.getState().setActiveGym(DEV_GYMS[0].id)
       }
+      useGymStore.getState().setUserRole('main_admin', null, 'Dev User')
       setLoading(false)
       return
     }
@@ -28,7 +29,23 @@ export function useGymsData() {
       try {
         setLoading(true)
 
-        // Fetch gyms
+        // 1. Get authenticated user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+
+        // 2. Fetch role from user_roles table
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role, gym_id, name')
+          .eq('user_id', user.id)
+          .single()
+
+        const role   = roleData?.role   || 'co_owner'
+        const gymId  = roleData?.gym_id || null
+        const name   = roleData?.name   || user.email
+        useGymStore.getState().setUserRole(role, gymId, name)
+
+        // 3. Fetch all gyms
         const { data: gymData, error: gymErr } = await supabase
           .from('gyms')
           .select('*')
@@ -36,16 +53,23 @@ export function useGymsData() {
 
         if (gymErr) throw gymErr
 
-        const fetchedGyms = gymData || []
-        useGymStore.getState().setGyms(fetchedGyms)
+        const allGyms = gymData || []
 
-        // Set first gym active if none set
-        const currentActiveId = useGymStore.getState().activeGymId
-        if (!currentActiveId && fetchedGyms.length > 0) {
-          useGymStore.getState().setActiveGym(fetchedGyms[0].id)
+        // 4. co_owner: locked to their gym only
+        if (role === 'co_owner' && gymId) {
+          const myGym = allGyms.filter((g) => g.id === gymId)
+          useGymStore.getState().setGyms(myGym)
+          useGymStore.getState().setActiveGym(gymId)
+        } else {
+          // main_admin: all gyms, keep current selection or default to first
+          useGymStore.getState().setGyms(allGyms)
+          const currentActiveId = useGymStore.getState().activeGymId
+          if (!currentActiveId && allGyms.length > 0) {
+            useGymStore.getState().setActiveGym(allGyms[0].id)
+          }
         }
 
-        // Fetch settings for active gym
+        // 5. Fetch settings for active gym
         const activeId = useGymStore.getState().activeGymId
         if (activeId) {
           const { data: settingsData } = await supabase
@@ -53,7 +77,6 @@ export function useGymsData() {
             .select('*')
             .eq('gym_id', activeId)
             .single()
-
           if (settingsData) useGymStore.getState().setSettings(settingsData)
         }
       } catch (err) {
