@@ -32,13 +32,15 @@ export function useGymsData() {
         // 1. Get authenticated user
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { setLoading(false); return }
+        console.log('[useGymsData] Auth user ID:', user.id)
 
         // 2. Fetch role from user_roles table
-        const { data: roleData } = await supabase
+        const { data: roleData, error: roleErr } = await supabase
           .from('user_roles')
           .select('role, gym_id, name')
           .eq('user_id', user.id)
           .single()
+        console.log('[useGymsData] Role data:', roleData, '| Error:', roleErr)
 
         const role   = roleData?.role   || 'co_owner'
         const gymId  = roleData?.gym_id || null

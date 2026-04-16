@@ -21,6 +21,7 @@ import {
   generateWhatsAppLink, buildRenewalMessage,
 } from '../utils/helpers'
 import { SkeletonCard } from '../components/ui/Skeleton'
+import { createMemberAccount, getMemberAccountStatus } from '../scripts/createMemberAccount'
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 const TABS = ['Overview', 'Attendance', 'Payments']
@@ -66,6 +67,38 @@ export default function MemberProfile() {
   const [deleteModal,  setDeleteModal]  = useState(false)
   const [pauseModal,   setPauseModal]   = useState(false)
   const [actioning,    setActioning]    = useState(false)
+  const [hasPortal,    setHasPortal]    = useState(false)
+  const [portalLoad,   setPortalLoad]   = useState(true)
+  const [createModal,  setCreateModal]  = useState(false)
+  const [newPassword,  setNewPassword]  = useState('')
+  const [creating,     setCreating]     = useState(false)
+
+  // Check portal account status when member loads
+  useEffect(() => {
+    if (!member) return
+    setPortalLoad(true)
+    getMemberAccountStatus(member.id)
+      .then(({ hasAccount }) => setHasPortal(hasAccount))
+      .finally(() => setPortalLoad(false))
+  }, [member?.id])
+
+  async function handleCreatePortal() {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+    setCreating(true)
+    const result = await createMemberAccount(member.id, member.phone, newPassword)
+    setCreating(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      setHasPortal(true)
+      setCreateModal(false)
+      setNewPassword('')
+      toast.success(`Login created! Member can login with phone: ${member.phone}`)
+    }
+  }
 
   // Fetch member + related data
   useEffect(() => {
@@ -417,6 +450,32 @@ export default function MemberProfile() {
               </div>
             </div>
 
+            {/* Member Portal Access */}
+            <div className="card">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Member Portal Access</h3>
+              {portalLoad ? (
+                <p className="text-xs text-gray-400">Checking…</p>
+              ) : hasPortal ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-xs bg-success-light text-success-dark px-2.5 py-1 rounded-full font-medium">
+                    ✓ Active
+                  </span>
+                  <p className="text-xs text-gray-400">Login: {member.phone}@mlcgym.member</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-gray-400 mb-3">No portal access yet. Create a login so this member can check their profile.</p>
+                  <button
+                    onClick={() => setCreateModal(true)}
+                    className="text-xs font-semibold text-white px-3 py-1.5 rounded-btn transition-colors"
+                    style={{ background: '#1D9E75' }}
+                  >
+                    Create login
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* WhatsApp actions */}
             <div className="card">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">WhatsApp quick actions</h3>
@@ -550,6 +609,43 @@ export default function MemberProfile() {
         message="They will not be counted as active. You can resume anytime."
         confirmText={actioning ? 'Pausing…' : 'Pause'}
       />
+
+      {/* Create portal login modal */}
+      {createModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-50" onClick={() => setCreateModal(false)} />
+          <div className="fixed z-50 bg-white rounded-xl shadow-xl p-6 w-full max-w-sm left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">Create member portal login</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Member will login with phone <span className="font-mono font-medium">{member.phone}</span> and this password.
+            </p>
+            <label className="label">Set password</label>
+            <input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Min 6 characters"
+              className="input mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setCreateModal(false); setNewPassword('') }}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreatePortal}
+                disabled={creating}
+                className="flex-1 py-2 text-sm font-semibold text-white rounded-btn disabled:opacity-60"
+                style={{ background: '#1D9E75' }}
+              >
+                {creating ? 'Creating…' : 'Create login'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Edit modal */}
       {editOpen && (

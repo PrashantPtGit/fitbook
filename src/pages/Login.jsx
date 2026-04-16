@@ -232,22 +232,18 @@ function MemberLoginCard() {
 
     setLoading(true)
 
-    // Check member_accounts table
-    const { data, error: dbErr } = await supabase
-      .from('member_accounts')
-      .select('id, member_id, name')
-      .eq('phone', digits)
-      .eq('password_hash', password) // plain comparison — replace with proper hash in Part 13
-      .single()
+    // Members login with phone@mlcgym.member email format
+    const email = `${digits}@mlcgym.member`
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email, password })
 
     setLoading(false)
 
-    if (dbErr || !data) {
-      setError('No account found. Ask your trainer to create one.')
+    if (authErr) {
+      setError('Invalid phone or password. Contact your trainer.')
       return
     }
 
-    toast.success(`Welcome, ${data.name}!`)
+    toast.success('Welcome back!')
     navigate('/member-portal')
   }
 
