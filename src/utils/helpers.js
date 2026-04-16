@@ -138,6 +138,16 @@ export function buildOfferMessage(gymName, planName, offerPrice, originalPrice, 
   return `Special offer at ${gymName}! ${planName} membership at just ₹${offerPrice} (original ₹${originalPrice}). Valid till ${validTill}. Limited spots available. Contact us now! - FitBook`
 }
 
+// ─── Password generator ───────────────────────────────────────────────────────
+export function generatePassword() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  let password = 'MLC@'
+  for (let i = 0; i < 4; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return password
+}
+
 // ─── Date helpers ────────────────────────────────────────────────────────────
 export function todayISO() {
   return format(new Date(), 'yyyy-MM-dd')
