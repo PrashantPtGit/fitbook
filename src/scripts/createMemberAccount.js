@@ -1,8 +1,9 @@
 import { supabase } from '../lib/supabase'
 
 /**
- * Creates a Supabase auth account for a member so they can log into the member portal.
- * Called from staff app: MemberProfile page → "Create Login" button.
+ * Creates a Supabase auth account for a member via Edge Function (server-side).
+ * The admin.createUser() call must run server-side with the service role key —
+ * calling it from the browser returns "User not allowed".
  *
  * Login credentials for the member:
  *   Email:    <phone>@mlcgym.member
@@ -10,45 +11,39 @@ import { supabase } from '../lib/supabase'
  */
 export async function createMemberAccount(memberId, phone, password) {
   const digits = phone.replace(/\D/g, '')
-  const email  = `${digits}@mlcgym.member`
 
-  // 1. Create Supabase auth user
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { role: 'member', phone: digits },
-  })
-  if (authError) return { error: authError.message }
-
-  const userId = authData.user.id
-
-  // 2. Get gym_id from member record
+  // Fetch gym_id from the member record
   const { data: memberData, error: memberErr } = await supabase
     .from('members')
-    .select('gym_id, name')
+    .select('gym_id')
     .eq('id', memberId)
     .single()
   if (memberErr) return { error: memberErr.message }
 
-  // 3. Insert into member_accounts (links auth user ↔ member row)
-  const { error: accErr } = await supabase.from('member_accounts').insert({
-    user_id:   userId,
-    member_id: memberId,
-    gym_id:    memberData.gym_id,
-  })
-  if (accErr) return { error: accErr.message }
+  // Get current session token to authenticate the edge function call
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Not authenticated' }
 
-  // 4. Insert role so useGymsData knows this is a member
-  const { error: roleErr } = await supabase.from('user_roles').insert({
-    user_id: userId,
-    role:    'member',
-    gym_id:  memberData.gym_id,
-    name:    memberData.name,
-  })
-  if (roleErr) return { error: roleErr.message }
+  const response = await fetch(
+    import.meta.env.VITE_SUPABASE_URL + '/functions/v1/create-member-account',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({
+        memberId,
+        phone: digits,
+        password,
+        gymId: memberData.gym_id,
+      }),
+    }
+  )
 
-  return { success: true, email, userId }
+  const result = await response.json()
+  if (result.error) return { error: result.error }
+  return { success: true }
 }
 
 /**
