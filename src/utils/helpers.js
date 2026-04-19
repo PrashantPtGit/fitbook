@@ -114,6 +114,22 @@ export function generateWhatsAppLink(phone = '', message = '') {
   return `https://wa.me/91${clean}?text=${encodeURIComponent(message)}`
 }
 
+export function buildPaymentReceiptMessage(memberName, gymName, planName, amount, startDate, endDate, paymentMode, transactionId) {
+  return (
+    '*Payment Receipt — ' + gymName + '*\n\n' +
+    'Member: ' + memberName + '\n' +
+    'Plan: ' + planName + '\n' +
+    'Amount Paid: ₹' + amount + '\n' +
+    'Payment Mode: ' + (paymentMode || '').toUpperCase() + '\n' +
+    (transactionId ? 'Transaction ID: ' + transactionId + '\n' : '') +
+    'Valid From: ' + startDate + '\n' +
+    'Valid Until: ' + endDate + '\n\n' +
+    'Thank you for your payment! ✅\n' +
+    'See you at the gym! 💪\n\n' +
+    '— ' + gymName + ' Team'
+  )
+}
+
 export function buildRenewalMessage(memberName, gymName, planName, amount, expiryDate) {
   return `Hi ${memberName}! Your ${planName} membership at ${gymName} expires on ${expiryDate}. Renew now for ₹${amount}. Reply to this message or visit the gym. - FitBook`
 }

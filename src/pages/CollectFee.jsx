@@ -18,7 +18,7 @@ import { useGymStore } from '../store/useGymStore'
 import { collectFee } from '../hooks/usePayments'
 import {
   getMembershipStatus, formatDate, formatCurrency, todayISO, dateISO,
-  generateWhatsAppLink, buildRenewalMessage,
+  generateWhatsAppLink, buildPaymentReceiptMessage,
 } from '../utils/helpers'
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -152,12 +152,15 @@ export default function CollectFee() {
       toast.success(`✓ Payment recorded for ${member.name}`)
 
       if (sendWhatsApp && member.phone) {
-        const msg = buildRenewalMessage(
+        const msg = buildPaymentReceiptMessage(
           member.name,
           activeGym?.name || member.gyms?.name || 'the gym',
           selectedPlan?.name || '',
           data.amount,
-          formatDate(endDate)
+          formatDate(data.payment_date),
+          formatDate(endDate),
+          data.payment_mode,
+          data.transaction_id || null
         )
         window.open(generateWhatsAppLink(member.whatsapp || member.phone, msg), '_blank')
       }

@@ -30,18 +30,27 @@ export function useMemberPortal() {
         .from('member_accounts')
         .select('member_id')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
       if (accErr || !account) throw new Error('Member account not found')
 
       const memberId = account.member_id
 
-      // 3. Fetch member profile + gym + trainer + memberships + latest plan
-      const [memberRes, paymentsRes, attendanceRes] = await Promise.all([
+      // 3. Fetch member profile + gym + trainer (memberships fetched separately to avoid RLS join issues)
+      const [memberRes, membershipRes, paymentsRes, attendanceRes] = await Promise.all([
         supabase
           .from('members')
-          .select('*, gyms(name, location, phone), trainers(name, phone), memberships(*, plans(name, price, duration_days))')
+          .select('*, gyms(name, location, phone), trainers(name, phone)')
           .eq('id', memberId)
-          .single(),
+          .maybeSingle(),
+
+        supabase
+          .from('memberships')
+          .select('*, plans(name, price, duration_days)')
+          .eq('member_id', memberId)
+          .eq('status', 'active')
+          .order('end_date', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
 
         supabase
           .from('payments')
@@ -59,13 +68,8 @@ export function useMemberPortal() {
 
       if (memberRes.error) throw memberRes.error
 
-      // Derive active membership (latest end_date)
-      const memberships = memberRes.data.memberships || []
-      const activeMembership = memberships
-        .sort((a, b) => (b.end_date || '') > (a.end_date || '') ? 1 : -1)[0] || null
-
       setMember(memberRes.data)
-      setMembership(activeMembership)
+      setMembership(membershipRes.data || null)
       setPayments(paymentsRes.data || [])
       setAttendance(attendanceRes.data || [])
     } catch (err) {

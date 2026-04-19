@@ -243,6 +243,8 @@ function MemberLoginCard() {
       return
     }
 
+    // Mark role as resolved so MemberRoute doesn't hang on roleLoading: true
+    useGymStore.getState().setUserRole('member', null, digits)
     toast.success('Welcome back!')
     navigate('/member-portal')
   }
@@ -362,9 +364,9 @@ function DevHints() {
 
 // ─── Main Login Page ──────────────────────────────────────────────────────────
 const LOCATIONS = [
-  { name: 'MLC Gym New Shimla', color: 'bg-gym2-light text-gym2-dark' },
-  { name: 'MLC Gym Chakkar',    color: 'bg-gym3-light text-gym3-dark' },
-  { name: 'MLC Gym Mall Road',  color: 'bg-gym1-light text-gym1-dark' },
+  { name: 'MLC Gym New Shimla',        color: 'bg-gym2-light text-gym2-dark' },
+  { name: 'MLC Gym Chakkar',           color: 'bg-gym3-light text-gym3-dark' },
+  { name: 'MLC Gym Mall Road Shimla',  color: 'bg-gym1-light text-gym1-dark' },
 ]
 
 export default function Login() {

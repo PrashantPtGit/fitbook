@@ -1,269 +1,163 @@
-import { useMemo } from 'react'
-import { differenceInDays, format, parseISO } from 'date-fns'
-import { MessageCircle, RefreshCw, Flame } from 'lucide-react'
-import MemberPortalLayout from './MemberPortalLayout'
-import { useMemberPortal } from '../../hooks/useMemberPortal'
-import { formatDate, daysFromNow, generateWhatsAppLink } from '../../utils/helpers'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
 
-const QUOTES = [
-  'Every rep counts. Every day matters. Keep going! 💪',
-  'The gym is your temple. Show up and grow stronger.',
-  'Consistency is the secret ingredient to fitness.',
-  'Your only competition is who you were yesterday.',
-  'Push yourself because no one else is going to do it for you.',
-  'Strong body, strong mind. You\'ve got this!',
-  'Progress, not perfection. One day at a time.',
-]
+const MemberHome = () => {
+  const navigate = useNavigate()
+  const [member, setMember] = useState(null)
+  const [membership, setMembership] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-function getGreeting() {
-  const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
-}
+  useEffect(() => {
+    let mounted = true
 
-function calcStreak(attendance) {
-  if (!attendance.length) return { current: 0, best: 0 }
-  const dates = [...new Set(attendance.map((a) => a.date))].sort((a, b) => b > a ? 1 : -1)
-  let current = 0
-  let best    = 0
-  let streak  = 1
-  const today = format(new Date(), 'yyyy-MM-dd')
+    const load = async () => {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  // current streak: count backwards from today
-  let prev = today
-  for (const d of dates) {
-    const diff = differenceInDays(parseISO(prev), parseISO(d))
-    if (diff === 0) { prev = d; continue }
-    if (diff === 1) { streak++; prev = d }
-    else break
-  }
-  current = dates[0] === today || differenceInDays(new Date(), parseISO(dates[0])) <= 1 ? streak : 0
+        if (!user || userError) {
+          navigate('/login')
+          return
+        }
 
-  // best streak: scan all dates
-  let run = 1
-  for (let i = 0; i < dates.length - 1; i++) {
-    if (differenceInDays(parseISO(dates[i]), parseISO(dates[i + 1])) === 1) {
-      run++
-      best = Math.max(best, run)
-    } else {
-      run = 1
+        const { data: account, error: accountError } = await supabase
+          .from('member_accounts')
+          .select('member_id, gym_id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (!account) {
+          if (mounted) {
+            setError('No member account linked. Contact your trainer.')
+            setLoading(false)
+          }
+          return
+        }
+
+        const { data: memberData } = await supabase
+          .from('members')
+          .select('*, gyms(name), trainers(name, phone)')
+          .eq('id', account.member_id)
+          .maybeSingle()
+
+        const { data: membershipData } = await supabase
+          .from('memberships')
+          .select('*, plans(name, price, duration_days)')
+          .eq('member_id', account.member_id)
+          .eq('status', 'active')
+          .order('end_date', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (mounted) {
+          setMember(memberData)
+          setMembership(membershipData)
+          setLoading(false)
+        }
+
+      } catch (err) {
+        console.error('Member portal error:', err)
+        if (mounted) {
+          setError(err.message)
+          setLoading(false)
+        }
+      }
     }
-  }
-  best = Math.max(best, current, 1)
-  return { current, best }
-}
 
-function SkeletonCard({ className = '' }) {
+    load()
+    return () => { mounted = false }
+  }, [])
+
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: '12px' }}>
+      <div style={{ width: '32px', height: '32px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+      <p style={{ fontSize: '14px', color: '#6B6B8A' }}>Loading your profile...</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
+
+  if (error) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: '12px', padding: '20px' }}>
+      <p style={{ fontSize: '16px', color: '#A32D2D', textAlign: 'center' }}>{error}</p>
+      <button onClick={() => supabase.auth.signOut().then(() => navigate('/login'))} style={{ padding: '10px 20px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Back to login</button>
+    </div>
+  )
+
+  if (!member) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <p>No member data found</p>
+      <button onClick={() => navigate('/login')}>Go to login</button>
+    </div>
+  )
+
+  const daysRemaining = membership ? Math.ceil((new Date(membership.end_date) - new Date()) / (1000 * 60 * 60 * 24)) : 0
+
   return (
-    <div className={`bg-white rounded-2xl p-4 animate-pulse ${className}`}>
-      <div className="h-4 bg-gray-100 rounded w-1/2 mb-3" />
-      <div className="h-8 bg-gray-100 rounded w-3/4 mb-2" />
-      <div className="h-3 bg-gray-100 rounded w-1/3" />
+    <div style={{ minHeight: '100vh', background: '#F0FDF8', padding: '20px', fontFamily: 'Inter, sans-serif' }}>
+
+      <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', borderRadius: '16px', padding: '20px', color: 'white', marginBottom: '16px' }}>
+        <p style={{ fontSize: '12px', opacity: 0.8, marginBottom: '4px' }}>Welcome back</p>
+        <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px' }}>{member.name}</h1>
+        <p style={{ fontSize: '12px', opacity: 0.8 }}>{member.member_code} · {membership?.plans?.name || 'No active plan'}</p>
+        <div style={{ marginTop: '16px', background: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <span style={{ fontSize: '12px', opacity: 0.9 }}>Plan valid until</span>
+            <span style={{ fontSize: '12px', fontWeight: '600' }}>{membership ? new Date(membership.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}</span>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.3)', borderRadius: '4px', height: '6px' }}>
+            <div style={{ background: 'white', borderRadius: '4px', height: '6px', width: membership ? Math.max(0, Math.min(100, (daysRemaining / (membership.plans?.duration_days || 30)) * 100)) + '%' : '0%' }}></div>
+          </div>
+          <p style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>{daysRemaining > 0 ? daysRemaining + ' days remaining' : 'Expired'}</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+        <div style={{ background: 'white', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', color: '#6B6B8A', marginBottom: '4px' }}>Member since</p>
+          <p style={{ fontSize: '16px', fontWeight: '600' }}>{new Date(member.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
+        </div>
+        <div style={{ background: 'white', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+          <p style={{ fontSize: '11px', color: '#6B6B8A', marginBottom: '4px' }}>Days remaining</p>
+          <p style={{ fontSize: '16px', fontWeight: '600', color: daysRemaining < 7 ? '#A32D2D' : daysRemaining < 15 ? '#BA7517' : '#1D9E75' }}>{daysRemaining}</p>
+        </div>
+      </div>
+
+      <div style={{ background: 'white', borderRadius: '12px', padding: '16px', marginBottom: '80px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Quick actions</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <button onClick={() => navigate('/member-portal/attendance')} style={{ padding: '12px', background: '#E1F5EE', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#085041', cursor: 'pointer' }}>📅 Attendance</button>
+          <button onClick={() => navigate('/member-portal/health')} style={{ padding: '12px', background: '#E1F5EE', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#085041', cursor: 'pointer' }}>🏋️ Workout Plan</button>
+          <button onClick={() => navigate('/member-portal/payments')} style={{ padding: '12px', background: '#E1F5EE', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#085041', cursor: 'pointer' }}>💳 Payments</button>
+          <button onClick={() => navigate('/member-portal/more')} style={{ padding: '12px', background: '#E1F5EE', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#085041', cursor: 'pointer' }}>⋯ More</button>
+        </div>
+      </div>
+
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1px solid #EBEBF5', display: 'flex', justifyContent: 'space-around', padding: '8px 0 20px' }}>
+        <button onClick={() => navigate('/member-portal')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', background: 'none', border: 'none', cursor: 'pointer', color: '#1D9E75' }}>
+          <span style={{ fontSize: '20px' }}>🏠</span>
+          <span style={{ fontSize: '10px', fontWeight: '600' }}>Home</span>
+        </button>
+        <button onClick={() => navigate('/member-portal/attendance')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B6B8A' }}>
+          <span style={{ fontSize: '20px' }}>📅</span>
+          <span style={{ fontSize: '10px' }}>Attendance</span>
+        </button>
+        <button onClick={() => navigate('/member-portal/payments')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B6B8A' }}>
+          <span style={{ fontSize: '20px' }}>💳</span>
+          <span style={{ fontSize: '10px' }}>Payments</span>
+        </button>
+        <button onClick={() => navigate('/member-portal/health')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B6B8A' }}>
+          <span style={{ fontSize: '20px' }}>❤️</span>
+          <span style={{ fontSize: '10px' }}>Health</span>
+        </button>
+        <button onClick={() => navigate('/member-portal/more')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', background: 'none', border: 'none', cursor: 'pointer', color: '#6B6B8A' }}>
+          <span style={{ fontSize: '20px' }}>⋯</span>
+          <span style={{ fontSize: '10px' }}>More</span>
+        </button>
+      </div>
+
     </div>
   )
 }
 
-export default function MemberHome() {
-  const { member, membership, attendance, loading } = useMemberPortal()
-
-  const todayStr   = format(new Date(), 'yyyy-MM-dd')
-  const todayEntry = attendance.find((a) => a.date === todayStr)
-  const daysLeft   = membership ? daysFromNow(membership.end_date) : null
-
-  const thisMonthKey   = format(new Date(), 'yyyy-MM')
-  const thisMonthCount = attendance.filter((a) => a.date?.startsWith(thisMonthKey)).length
-  const totalVisits    = attendance.length
-
-  const { current: currentStreak, best: bestStreak } = useMemo(
-    () => calcStreak(attendance),
-    [attendance]
-  )
-
-  const planDays  = membership?.plans?.duration_days || 30
-  const startDate = membership?.start_date
-  const daysUsed  = startDate
-    ? Math.max(0, differenceInDays(new Date(), parseISO(startDate)))
-    : 0
-  const progressPct = Math.min(100, Math.round((daysUsed / planDays) * 100))
-
-  const barColor =
-    daysLeft === null ? '#9ca3af'
-    : daysLeft <= 7   ? '#A32D2D'
-    : daysLeft <= 15  ? '#BA7517'
-    : '#1D9E75'
-
-  const quote = useMemo(
-    () => QUOTES[new Date().getDate() % QUOTES.length],
-    []
-  )
-
-  const trainerPhone = member?.trainers?.phone
-  const waLink = trainerPhone
-    ? generateWhatsAppLink(trainerPhone, `Hi, I'd like to renew my membership. - ${member?.name}`)
-    : null
-
-  if (loading) {
-    return (
-      <MemberPortalLayout title="Home">
-        <SkeletonCard className="mb-4 h-40" />
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
-        </div>
-        <SkeletonCard />
-      </MemberPortalLayout>
-    )
-  }
-
-  if (!member) {
-    return (
-      <MemberPortalLayout title="Home">
-        <div className="text-center py-12 text-gray-400 text-sm">
-          Could not load your profile. Please try again.
-        </div>
-      </MemberPortalLayout>
-    )
-  }
-
-  const firstName = member.name?.split(' ')[0] || 'there'
-
-  return (
-    <MemberPortalLayout title="Home">
-      {/* Greeting */}
-      <div className="mb-4">
-        <h1 className="text-xl font-bold text-gray-900" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
-          {getGreeting()}, {firstName}! 👋
-        </h1>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {member.gyms?.name} · Member since {formatDate(member.created_at)}
-        </p>
-      </div>
-
-      {/* ── Membership card (hero) ── */}
-      <div
-        className="rounded-2xl p-5 mb-4 text-white"
-        style={{ background: 'linear-gradient(135deg, #1D9E75 0%, #085041 100%)', boxShadow: '0 8px 32px rgba(29,158,117,0.25)' }}
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <p className="text-xs text-white/70 mb-0.5">Member</p>
-            <p className="text-lg font-bold" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
-              {member.name}
-            </p>
-            <p className="text-xs text-white/70">{member.member_code}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-white/70 mb-0.5">Plan</p>
-            <p className="text-sm font-semibold">{membership?.plans?.name || '—'}</p>
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <div className="flex justify-between text-xs text-white/70 mb-1.5">
-            <span>Valid until {formatDate(membership?.end_date)}</span>
-            <span style={{ color: daysLeft !== null && daysLeft <= 7 ? '#FCA5A5' : 'rgba(255,255,255,0.7)' }}>
-              {daysLeft === null ? '—'
-                : daysLeft < 0 ? 'Expired'
-                : daysLeft === 0 ? 'Expires today!'
-                : `${daysLeft} days left`}
-            </span>
-          </div>
-          <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${progressPct}%`, background: barColor }}
-            />
-          </div>
-        </div>
-
-        {daysLeft !== null && daysLeft <= 14 && waLink && (
-          <a
-            href={waLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-btn transition-colors"
-          >
-            <MessageCircle size={12} /> Renew membership
-          </a>
-        )}
-      </div>
-
-      {/* ── Quick stats grid ── */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        {[
-          { label: 'This month',      value: thisMonthCount,   unit: 'visits'     },
-          { label: 'Total visits',    value: totalVisits,      unit: 'all time'   },
-          { label: 'Current streak',  value: currentStreak,    unit: 'days in a row' },
-          { label: 'Best streak',     value: bestStreak,       unit: 'days ever'  },
-        ].map(({ label, value, unit }) => (
-          <div key={label} className="bg-white rounded-xl p-3.5 border border-gray-100">
-            <p className="text-xs text-gray-400 mb-1">{label}</p>
-            <p className="text-2xl font-bold text-gray-900" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-              {value}
-            </p>
-            <p className="text-[10px] text-gray-400 mt-0.5">{unit}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Today's status ── */}
-      <div className={`rounded-xl p-4 mb-4 border ${
-        todayEntry
-          ? 'bg-green-50 border-green-100'
-          : 'bg-gray-50 border-gray-100'
-      }`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
-            todayEntry ? 'bg-green-100' : 'bg-gray-100'
-          }`}>
-            {todayEntry ? '✓' : '—'}
-          </div>
-          <div>
-            <p className={`text-sm font-semibold ${todayEntry ? 'text-green-800' : 'text-gray-500'}`}>
-              {todayEntry
-                ? `Checked in today ${todayEntry.checked_in_at
-                    ? `at ${format(parseISO(todayEntry.checked_in_at), 'h:mm a')}`
-                    : ''} ✓`
-                : 'Not checked in today'}
-            </p>
-            {currentStreak > 1 && (
-              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                <Flame size={10} className="text-orange-400" />
-                {currentStreak}-day streak — keep it up!
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Motivational quote ── */}
-      <div
-        className="rounded-xl p-4 mb-4 border-l-4 bg-white"
-        style={{ borderLeftColor: '#1D9E75' }}
-      >
-        <p className="text-xs text-gray-400 mb-1">Daily motivation</p>
-        <p className="text-sm text-gray-700 italic">{quote}</p>
-      </div>
-
-      {/* ── Contact trainer ── */}
-      {member.trainers?.name && (
-        <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <p className="text-xs text-gray-400 mb-2">Your trainer</p>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-800">{member.trainers.name}</p>
-            {waLink && (
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-btn hover:bg-green-100 transition-colors"
-              >
-                <MessageCircle size={12} /> WhatsApp
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-    </MemberPortalLayout>
-  )
-}
+export default MemberHome

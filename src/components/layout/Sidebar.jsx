@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, CalendarCheck,
-  MessageSquare, Activity, Salad, BarChart2, Settings, X, LogOut,
+  MessageSquare, Activity, Salad, BarChart2, Settings, X, LogOut, Dumbbell,
 } from 'lucide-react'
 import Avatar from '../ui/Avatar'
 import ConfirmModal from '../ui/ConfirmModal'
@@ -19,11 +19,12 @@ const DAILY = [
 ]
 
 const TOOLS = [
-  { to: '/messages', label: 'Messages', icon: MessageSquare, dot: 'bg-[#EC4899]' },
-  { to: '/health',   label: 'Health',   icon: Activity,      dot: 'bg-fire'      },
-  { to: '/diet',     label: 'Diet',     icon: Salad,         dot: 'bg-success'   },
-  { to: '/reports',  label: 'Reports',  icon: BarChart2,     dot: 'bg-ink-muted' },
-  { to: '/settings', label: 'Settings', icon: Settings,      dot: 'bg-gray-400'  },
+  { to: '/messages',  label: 'Messages',  icon: MessageSquare, dot: 'bg-[#EC4899]'   },
+  { to: '/health',    label: 'Health',    icon: Activity,      dot: 'bg-fire'        },
+  { to: '/diet',      label: 'Diet',      icon: Salad,         dot: 'bg-success'     },
+  { to: '/workouts',  label: 'Workouts',  icon: Dumbbell,      dot: 'bg-[#D85A30]'   },
+  { to: '/reports',   label: 'Reports',   icon: BarChart2,     dot: 'bg-ink-muted'   },
+  { to: '/settings',  label: 'Settings',  icon: Settings,      dot: 'bg-gray-400'    },
 ]
 
 function NavItem({ to, label, icon: Icon, dot, onNavigate }) {

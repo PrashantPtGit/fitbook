@@ -90,24 +90,30 @@ function BellDropdown({ gymId }) {
 
 // ─── Global search ────────────────────────────────────────────────────────────
 function GlobalSearch({ gymId }) {
-  const [open,    setOpen]    = useState(false)
-  const [query,   setQuery]   = useState('')
-  const [results, setResults] = useState([])
-  const [busy,    setBusy]    = useState(false)
-  const inputRef = useRef(null)
-  const wrapRef  = useRef(null)
-  const timer    = useRef(null)
-  const navigate = useNavigate()
+  const [open,        setOpen]        = useState(false)   // desktop inline
+  const [mobileOpen,  setMobileOpen]  = useState(false)   // mobile overlay
+  const [query,       setQuery]       = useState('')
+  const [results,     setResults]     = useState([])
+  const [busy,        setBusy]        = useState(false)
+  const inputRef       = useRef(null)
+  const mobileInputRef = useRef(null)
+  const wrapRef        = useRef(null)
+  const timer          = useRef(null)
+  const navigate       = useNavigate()
 
   useEffect(() => {
     function handler(e) {
-      if (e.key === 'Escape') { setOpen(false); setQuery('') }
+      if (e.key === 'Escape') { setOpen(false); setMobileOpen(false); setQuery(''); setResults([]) }
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
     }
     document.addEventListener('keydown', handler)
     document.addEventListener('mousedown', handler)
     return () => { document.removeEventListener('keydown', handler); document.removeEventListener('mousedown', handler) }
   }, [])
+
+  useEffect(() => {
+    if (mobileOpen) setTimeout(() => mobileInputRef.current?.focus(), 50)
+  }, [mobileOpen])
 
   const doSearch = useCallback(async (q) => {
     if (!q.trim() || !supabaseReady) { setResults([]); setBusy(false); return }
@@ -128,67 +134,114 @@ function GlobalSearch({ gymId }) {
 
   function handleSelect(member) {
     navigate(`/members/${member.id}`)
-    setOpen(false); setQuery(''); setResults([])
+    setOpen(false); setMobileOpen(false); setQuery(''); setResults([])
   }
 
-  return (
-    <div ref={wrapRef} className="relative hidden md:block">
-      {!open ? (
-        <button
-          onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
-          className="p-2 rounded-btn text-ink-secondary hover:text-ink hover:bg-surface-app transition-colors"
-        >
-          <Search size={16} />
-        </button>
-      ) : (
-        <div className="flex items-center gap-1.5 bg-surface-app border border-primary rounded-btn px-2.5 py-1.5 shadow-focus">
-          <Search size={13} className="text-ink-muted shrink-0" />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={handleChange}
-            placeholder="Search members…"
-            className="text-sm bg-transparent outline-none w-44 placeholder:text-ink-muted text-ink"
-          />
-          {query && (
-            <button onClick={() => { setQuery(''); setResults([]) }} className="text-ink-muted hover:text-ink">
-              <X size={13} />
-            </button>
-          )}
-        </div>
-      )}
+  function closeAll() {
+    setOpen(false); setMobileOpen(false); setQuery(''); setResults([])
+  }
 
-      {open && query.length > 0 && (
-        <div className="absolute right-0 top-10 w-64 bg-white border border-surface-border rounded-xl shadow-float z-50 overflow-hidden animate-slide-in-top">
-          {busy ? (
-            <p className="text-xs text-ink-muted text-center py-4">Searching…</p>
-          ) : results.length === 0 ? (
-            <p className="text-xs text-ink-muted text-center py-4">No members found for "{query}"</p>
-          ) : (
-            <div className="divide-y divide-surface-border">
-              {results.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => handleSelect(m)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-app text-left transition-colors"
-                >
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[11px] font-semibold text-white"
-                    style={{ background: 'linear-gradient(135deg, #534AB7 0%, #7B6FF0 100%)', fontFamily: '"Plus Jakarta Sans", sans-serif' }}
-                  >
-                    {m.name?.[0]?.toUpperCase() || '?'}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-ink truncate">{m.name}</p>
-                    <p className="text-[10px] text-ink-muted">{m.member_code} · {m.phone}</p>
-                  </div>
-                </button>
-              ))}
+  const memberAvatar = (name) => (
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold text-white"
+      style={{ background: 'linear-gradient(135deg, #534AB7 0%, #7B6FF0 100%)' }}
+    >
+      {name?.[0]?.toUpperCase() || '?'}
+    </div>
+  )
+
+  const resultRows = (padded) => busy ? (
+    <p className="text-xs text-ink-muted text-center py-4">Searching…</p>
+  ) : results.length === 0 ? (
+    <p className="text-xs text-ink-muted text-center py-4">No members found for "{query}"</p>
+  ) : (
+    <div className="divide-y divide-surface-border">
+      {results.map(m => (
+        <button
+          key={m.id}
+          onClick={() => handleSelect(m)}
+          className={`w-full flex items-center gap-3 ${padded ? 'px-4 py-3' : 'px-3 py-2.5'} hover:bg-surface-app text-left transition-colors`}
+        >
+          {memberAvatar(m.name)}
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-ink truncate">{m.name}</p>
+            <p className="text-[10px] text-ink-muted">{m.member_code} · {m.phone}</p>
+          </div>
+        </button>
+      ))}
+    </div>
+  )
+
+  return (
+    <>
+      {/* ── Desktop search ── */}
+      <div ref={wrapRef} className="relative hidden md:block">
+        {!open ? (
+          <button
+            onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
+            className="p-2 rounded-btn text-ink-secondary hover:text-ink hover:bg-surface-app transition-colors"
+          >
+            <Search size={16} />
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 bg-surface-app border border-primary rounded-btn px-2.5 py-1.5 shadow-focus">
+            <Search size={13} className="text-ink-muted shrink-0" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={handleChange}
+              placeholder="Search members…"
+              className="text-sm bg-transparent outline-none w-44 placeholder:text-ink-muted text-ink"
+            />
+            {query && (
+              <button onClick={() => { setQuery(''); setResults([]) }} className="text-ink-muted hover:text-ink">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        )}
+        {open && query.length > 0 && (
+          <div className="absolute right-0 top-10 w-64 bg-white border border-surface-border rounded-xl shadow-float z-50 overflow-hidden animate-slide-in-top">
+            {resultRows(false)}
+          </div>
+        )}
+      </div>
+
+      {/* ── Mobile: search icon ── */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden p-2 rounded-btn text-ink-secondary hover:text-ink hover:bg-surface-app transition-colors"
+      >
+        <Search size={16} />
+      </button>
+
+      {/* ── Mobile: full-screen overlay ── */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white">
+            <div className="flex items-center gap-2 px-3 h-14 border-b border-surface-border">
+              <Search size={16} className="text-ink-muted shrink-0" />
+              <input
+                ref={mobileInputRef}
+                value={query}
+                onChange={handleChange}
+                placeholder="Search members…"
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-ink-muted text-ink"
+              />
+              <button onClick={closeAll} className="p-2 text-ink-secondary hover:text-ink transition-colors">
+                <X size={18} />
+              </button>
             </div>
-          )}
+            {query.length > 0 && (
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 56px)' }}>
+                {resultRows(true)}
+              </div>
+            )}
+          </div>
+          <div className="flex-1" onClick={closeAll} />
         </div>
       )}
-    </div>
+    </>
   )
 }
 

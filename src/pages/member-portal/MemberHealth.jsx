@@ -1,10 +1,19 @@
-import { useState } from 'react'
-import { Dumbbell, MessageCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Dumbbell, MessageCircle, ChevronDown, ChevronUp, Play } from 'lucide-react'
+
+function YtIcon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.75 15.5V8.5l6.5 3.5-6.5 3.5z"/>
+    </svg>
+  )
+}
 import toast from 'react-hot-toast'
 import MemberPortalLayout from './MemberPortalLayout'
 import { useMemberPortal } from '../../hooks/useMemberPortal'
 import { calculateBMI, generateWhatsAppLink } from '../../utils/helpers'
 import { supabase, supabaseReady } from '../../lib/supabase'
+import { getYouTubeSearchUrl } from '../../lib/exerciseDB'
 
 function BMIGauge({ bmi, category, color }) {
   // 15–40 range
@@ -31,6 +40,225 @@ function BMIGauge({ bmi, category, color }) {
       <div className="flex justify-between text-[9px] text-gray-400">
         <span>15</span><span>18.5</span><span>23</span><span>25</span><span>30</span><span>40</span>
       </div>
+    </div>
+  )
+}
+
+function WorkoutPlanViewer({ memberId, trainerPhone, memberName }) {
+  const [plan,        setPlan]        = useState(null)
+  const [planLoading, setPlanLoading] = useState(true)
+  const [expandedDay, setExpandedDay] = useState(0)
+
+  useEffect(() => {
+    if (!memberId) return
+    supabase
+      .from('workout_plans')
+      .select('*')
+      .eq('member_id', memberId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        setPlan(data)
+        setPlanLoading(false)
+      })
+  }, [memberId])
+
+  const waLink = trainerPhone
+    ? generateWhatsAppLink(trainerPhone, `Hi, can you create a workout plan for me? - ${memberName}`)
+    : null
+
+  if (planLoading) {
+    return (
+      <div className="bg-white rounded-xl p-4 border border-gray-100 animate-pulse">
+        <div className="h-4 bg-gray-100 rounded w-1/3 mb-3" />
+        <div className="h-24 bg-gray-100 rounded" />
+      </div>
+    )
+  }
+
+  if (!plan) {
+    return (
+      <div className="bg-white rounded-xl p-5 border border-gray-100 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+          <Dumbbell size={22} className="text-gray-400" />
+        </div>
+        <p className="text-sm font-semibold text-gray-700 mb-1">No workout plan yet</p>
+        <p className="text-xs text-gray-400 mb-3">Your trainer hasn't assigned a plan yet.</p>
+        {waLink && (
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs bg-green-50 text-green-700 px-3 py-2 rounded-btn hover:bg-green-100 transition-colors"
+          >
+            <MessageCircle size={12} /> Ask your trainer
+          </a>
+        )}
+      </div>
+    )
+  }
+
+  const days = plan.plan_data?.days || []
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      {/* Plan header */}
+      <div className="p-4 border-b border-gray-50" style={{ borderLeft: '3px solid #1D9E75' }}>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Your workout plan</p>
+            <p className="text-base font-bold text-gray-800">{plan.name}</p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-[11px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                {plan.goal}
+              </span>
+              <span className="text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">
+                {plan.level}
+              </span>
+              <span className="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                {plan.days_per_week}×/week
+              </span>
+            </div>
+          </div>
+          <button
+            className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg shrink-0"
+            style={{ background: '#1D9E75' }}
+            onClick={() => toast('Let\'s go! 💪', { icon: '🏋️' })}
+          >
+            <Play size={11} /> Start
+          </button>
+        </div>
+      </div>
+
+      {/* Day tabs */}
+      <div className="flex gap-1 p-3 overflow-x-auto scrollbar-none border-b border-gray-50">
+        {days.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setExpandedDay(i)}
+            className="shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition-all"
+            style={{
+              background: expandedDay === i ? '#1D9E75' : '#F3F4F6',
+              color:      expandedDay === i ? 'white'    : '#6B7280',
+            }}
+          >
+            Day {i + 1}
+          </button>
+        ))}
+      </div>
+
+      {/* Active day exercises */}
+      {days[expandedDay] && (
+        <div className="p-3">
+          <p className="text-xs font-semibold text-gray-600 mb-3">{days[expandedDay].dayName}</p>
+          <div className="space-y-2">
+            {(days[expandedDay].exercises || []).map((ex, ei) => (
+              <ExerciseRow key={ei} exercise={ex} />
+            ))}
+            {(days[expandedDay].exercises || []).length === 0 && (
+              <p className="text-xs text-gray-400 text-center py-4">No exercises for this day</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExerciseRow({ exercise }) {
+  const [imgErr, setImgErr] = useState(!exercise.gifUrl)
+  const [open,   setOpen]   = useState(false)
+
+  return (
+    <div className="rounded-xl border border-gray-100 overflow-hidden">
+      <button
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {/* Thumbnail */}
+        <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+          {!imgErr && exercise.gifUrl ? (
+            <img
+              src={exercise.gifUrl}
+              alt={exercise.name}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+              className="w-full h-full object-cover"
+              onError={() => setImgErr(true)}
+            />
+          ) : (
+            <Dumbbell size={18} className="text-gray-400" />
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-800 truncate">{exercise.name}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            {exercise.sets} sets × {exercise.reps}
+            {exercise.rest > 0 ? ` · ${exercise.rest}s rest` : ''}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <a
+            href={getYouTubeSearchUrl(exercise.name)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+            title="Watch on YouTube"
+          >
+            <YtIcon size={12} />
+          </a>
+          {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+        </div>
+      </button>
+
+      {/* Expanded GIF + notes */}
+      {open && (
+        <div className="px-3 pb-3 border-t border-gray-50 pt-3">
+          {!imgErr && exercise.gifUrl && (
+            <img
+              src={exercise.gifUrl}
+              alt={exercise.name}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+              className="w-full max-w-xs mx-auto rounded-xl mb-3"
+              style={{ maxHeight: '200px', objectFit: 'cover' }}
+              onError={() => setImgErr(true)}
+            />
+          )}
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="text-center bg-gray-50 rounded-lg p-2">
+              <p className="text-[10px] text-gray-400">Sets</p>
+              <p className="text-sm font-bold text-gray-800">{exercise.sets}</p>
+            </div>
+            <div className="text-center bg-gray-50 rounded-lg p-2">
+              <p className="text-[10px] text-gray-400">Reps</p>
+              <p className="text-sm font-bold text-gray-800">{exercise.reps}</p>
+            </div>
+            <div className="text-center bg-gray-50 rounded-lg p-2">
+              <p className="text-[10px] text-gray-400">Rest</p>
+              <p className="text-sm font-bold text-gray-800">{exercise.rest > 0 ? `${exercise.rest}s` : '—'}</p>
+            </div>
+          </div>
+          {exercise.notes && (
+            <p className="text-xs text-gray-500 bg-amber-50 rounded-lg p-2">📝 {exercise.notes}</p>
+          )}
+          <a
+            href={getYouTubeSearchUrl(exercise.name)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors"
+          >
+            <YtIcon size={13} /> Watch tutorial on YouTube
+          </a>
+        </div>
+      )}
     </div>
   )
 }
@@ -188,24 +416,14 @@ export default function MemberHealth() {
         )}
       </div>
 
-      {/* Workout plan placeholder */}
-      <div className="bg-white rounded-xl p-5 border border-gray-100 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
-          <Dumbbell size={22} className="text-gray-400" />
-        </div>
-        <p className="text-sm font-semibold text-gray-700 mb-1">Workout Plan</p>
-        <p className="text-xs text-gray-400 mb-3">Coming in Part 14 — personalised workout plans from your trainer.</p>
-        {member?.trainers?.phone && (
-          <a
-            href={generateWhatsAppLink(member.trainers.phone, `Hi, can you create a workout plan for me? - ${member.name}`)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-xs bg-green-50 text-green-700 px-3 py-2 rounded-btn hover:bg-green-100 transition-colors"
-          >
-            <MessageCircle size={12} /> Ask your trainer
-          </a>
-        )}
-      </div>
+      {/* Workout Plan */}
+      {member && (
+        <WorkoutPlanViewer
+          memberId={member.id}
+          trainerPhone={member.trainers?.phone}
+          memberName={member.name}
+        />
+      )}
     </MemberPortalLayout>
   )
 }

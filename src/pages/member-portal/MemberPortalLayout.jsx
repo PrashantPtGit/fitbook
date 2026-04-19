@@ -1,16 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, User, Calendar, Heart, Grid, LogOut } from 'lucide-react'
+import { Home, User, Calendar, Heart, Grid, LogOut, CreditCard } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useGymStore } from '../../store/useGymStore'
 import { useRole } from '../../hooks/useRole'
 import toast from 'react-hot-toast'
 
 const NAV = [
-  { to: '/member-portal',            label: 'Home',       icon: Home     },
-  { to: '/member-portal/profile',    label: 'Profile',    icon: User     },
-  { to: '/member-portal/attendance', label: 'Attendance', icon: Calendar },
-  { to: '/member-portal/health',     label: 'Health',     icon: Heart    },
-  { to: '/member-portal/more',       label: 'More',       icon: Grid     },
+  { to: '/member-portal',            label: 'Home',       icon: Home       },
+  { to: '/member-portal/attendance', label: 'Attendance', icon: Calendar   },
+  { to: '/member-portal/payments',   label: 'Payments',   icon: CreditCard },
+  { to: '/member-portal/health',     label: 'Health',     icon: Heart      },
+  { to: '/member-portal/more',       label: 'More',       icon: Grid       },
 ]
 
 const GREEN = '#1D9E75'

@@ -18,7 +18,7 @@ import ConfirmModal from '../components/ui/ConfirmModal'
 import { supabase, supabaseReady } from '../lib/supabase'
 import {
   getMembershipStatus, formatDate, formatCurrency, daysFromNow,
-  generateWhatsAppLink, buildRenewalMessage,
+  generateWhatsAppLink, buildRenewalMessage, buildPaymentReceiptMessage,
 } from '../utils/helpers'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { createMemberAccount, getMemberAccountStatus } from '../scripts/createMemberAccount'
@@ -483,7 +483,23 @@ export default function MemberProfile() {
                 <WAButton label="Send renewal reminder" onClick={sendRenewal} />
                 <WAButton
                   label="Send receipt"
-                  onClick={() => toast('Receipt feature coming soon')}
+                  onClick={() => {
+                    if (!member?.phone || !lastPayment) {
+                      toast.error('No payment found for this member')
+                      return
+                    }
+                    const msg = buildPaymentReceiptMessage(
+                      member.name,
+                      member.gyms?.name || 'MLC Gym',
+                      lastPayment.plans?.name || membership?.plans?.name || '',
+                      lastPayment.amount || 0,
+                      formatDate(lastPayment.payment_date),
+                      formatDate(membership?.end_date),
+                      lastPayment.payment_mode || '',
+                      lastPayment.transaction_id || null
+                    )
+                    window.open(generateWhatsAppLink(member.phone, msg), '_blank')
+                  }}
                 />
                 <WAButton label="Send custom message" onClick={sendCustom} />
               </div>

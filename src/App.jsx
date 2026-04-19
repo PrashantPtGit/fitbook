@@ -1,9 +1,10 @@
-import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import Spinner from './components/ui/Spinner'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { useRole } from './hooks/useRole'
+import { supabase } from './lib/supabase'
 
 // ── Staff pages ───────────────────────────────────────────────────────────────
 const Login         = lazy(() => import('./pages/Login'))
@@ -18,8 +19,10 @@ const Messages      = lazy(() => import('./pages/Messages'))
 const Health        = lazy(() => import('./pages/Health'))
 const Diet          = lazy(() => import('./pages/Diet'))
 const Reports       = lazy(() => import('./pages/Reports'))
-const Settings      = lazy(() => import('./pages/Settings'))
-const NotFound      = lazy(() => import('./pages/NotFound'))
+const Settings           = lazy(() => import('./pages/Settings'))
+const Workouts           = lazy(() => import('./pages/Workouts'))
+const CreateWorkoutPlan  = lazy(() => import('./pages/CreateWorkoutPlan'))
+const NotFound           = lazy(() => import('./pages/NotFound'))
 
 // ── Member portal pages ───────────────────────────────────────────────────────
 const MemberHome       = lazy(() => import('./pages/member-portal/MemberHome'))
@@ -45,11 +48,24 @@ function StaffRoute({ children }) {
   return children
 }
 
-// ── Member-only route: members only, redirect staff to /
+// ── Member-only route: checks session directly so page refreshes don't hang
 function MemberRoute({ children }) {
-  const { userRole, roleLoading } = useRole()
-  if (roleLoading) return <PageLoader />
-  if (userRole === 'main_admin' || userRole === 'co_owner') return <Navigate to="/" replace />
+  const navigate = useNavigate()
+  const [status, setStatus] = useState('checking') // 'checking' | 'allowed' | 'denied'
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        setStatus('denied')
+        navigate('/login', { replace: true })
+      } else {
+        setStatus('allowed')
+      }
+    })
+  }, [])
+
+  if (status === 'checking') return <PageLoader />
+  if (status === 'denied') return null
   return children
 }
 
@@ -81,7 +97,9 @@ export default function App() {
           <Route path="/health"              element={<StaffRoute><Health /></StaffRoute>} />
           <Route path="/diet"                element={<StaffRoute><Diet /></StaffRoute>} />
           <Route path="/reports"             element={<StaffRoute><Reports /></StaffRoute>} />
-          <Route path="/settings"            element={<StaffRoute><Settings /></StaffRoute>} />
+          <Route path="/settings"             element={<StaffRoute><Settings /></StaffRoute>} />
+          <Route path="/workouts"             element={<StaffRoute><Workouts /></StaffRoute>} />
+          <Route path="/workouts/create"      element={<StaffRoute><CreateWorkoutPlan /></StaffRoute>} />
 
           {/* ── Member portal ── */}
           <Route path="/member-portal"            element={<MemberRoute><MemberHome /></MemberRoute>} />

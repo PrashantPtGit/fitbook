@@ -16,6 +16,7 @@ const schema = z.object({
   health_notes:      z.string().optional(),
   batch_timing:      z.string().optional(),
   trainer_id:        z.string().optional(),
+  fingerprint_id:    z.coerce.number().optional().nullable(),
 })
 
 const BATCHES = ['6-8 AM', '7-9 AM', '10-12 PM', '5-7 PM', '7-9 PM']
@@ -46,6 +47,7 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
       health_notes:      member.health_notes      || '',
       batch_timing:      member.batch_timing      || '',
       trainer_id:        member.trainer_id        || '',
+      fingerprint_id:    member.fingerprint_id    ?? '',
     },
   })
 
@@ -74,6 +76,7 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
         health_notes:      data.health_notes      || null,
         batch_timing:      data.batch_timing      || null,
         trainer_id:        data.trainer_id        || null,
+        fingerprint_id:    data.fingerprint_id    || null,
       })
       .eq('id', member.id)
     setSaving(false)
@@ -154,6 +157,20 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
                 {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </Field>
+
+            <div className="sm:col-span-2">
+              <Field label="Face / Fingerprint ID" error={errors.fingerprint_id}>
+                <input
+                  {...register('fingerprint_id')}
+                  type="number"
+                  placeholder="User ID from the machine (e.g. 47)"
+                  className="input"
+                />
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Enter the ID assigned by the Hikvision machine when enrolling this member
+                </p>
+              </Field>
+            </div>
           </div>
 
           {/* Footer */}
