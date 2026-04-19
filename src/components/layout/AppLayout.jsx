@@ -21,6 +21,10 @@ export default function AppLayout({ children, pageTitle = '', pageSubtitle = '' 
     }
   }, [])
 
+  useEffect(() => {
+    document.title = pageTitle ? `${pageTitle} — FitBook` : 'FitBook'
+  }, [pageTitle])
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />

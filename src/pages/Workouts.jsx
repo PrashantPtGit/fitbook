@@ -7,6 +7,7 @@ import WorkoutPlanCard from '../components/workouts/WorkoutPlanCard'
 import ExerciseCard from '../components/workouts/ExerciseCard'
 import { supabase } from '../lib/supabase'
 import { useActiveGym } from '../store/useGymStore'
+import { generateWhatsAppLink } from '../utils/helpers'
 import { WORKOUT_TEMPLATES, GOALS, LEVELS } from '../data/workoutTemplates'
 
 const LEVEL_STYLE = {
@@ -63,7 +64,14 @@ export default function Workouts() {
     : members
 
   async function handleSendToMember(plan) {
-    toast('Plan shared with member (WhatsApp integration coming soon)', { icon: '📤' })
+    const { data: member } = await supabase
+      .from('members')
+      .select('name, phone, whatsapp')
+      .eq('id', plan.member_id)
+      .single()
+    if (!member?.phone) { toast.error('No phone number for this member'); return }
+    const msg = `Hi ${member.name}! 💪\n\nYour workout plan *${plan.name}* is ready.\n\nGoal: ${plan.goal || '—'} | Level: ${plan.level || '—'} | ${plan.days_per_week || 3} days/week\n\nOpen FitBook to view your full plan.\n\n— Your Trainer`
+    window.open(generateWhatsAppLink(member.whatsapp || member.phone, msg), '_blank')
   }
 
   async function toggleActive(plan) {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Wifi, WifiOff, Plus } from 'lucide-react'
 import { differenceInMinutes } from 'date-fns'
-import toast from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady } from '../../lib/supabase'
 import { useGymStore } from '../../store/useGymStore'
 import { SkeletonBox } from '../ui/Skeleton'
@@ -28,6 +28,7 @@ function deviceStatus(lastSyncedAt) {
 
 export default function DeviceStatus() {
   const activeGymId = useGymStore((s) => s.activeGymId)
+  const navigate    = useNavigate()
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -56,7 +57,7 @@ export default function DeviceStatus() {
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-800">Fingerprint devices</h3>
         <button
-          onClick={() => toast('Device management coming soon')}
+          onClick={() => navigate('/settings')}
           className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark font-medium transition-colors"
         >
           <Plus size={12} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Dumbbell, MessageCircle, ChevronDown, ChevronUp, Play } from 'lucide-react'
+import { Dumbbell, MessageCircle, ChevronDown, ChevronUp, Play, Utensils } from 'lucide-react'
 
 function YtIcon({ size = 12 }) {
   return (
@@ -40,6 +40,128 @@ function BMIGauge({ bmi, category, color }) {
       <div className="flex justify-between text-[9px] text-gray-400">
         <span>15</span><span>18.5</span><span>23</span><span>25</span><span>30</span><span>40</span>
       </div>
+    </div>
+  )
+}
+
+function DietPlanViewer({ memberId, trainerPhone, memberName }) {
+  const [plan,         setPlan]         = useState(null)
+  const [planLoading,  setPlanLoading]  = useState(true)
+  const [expandedMeal, setExpandedMeal] = useState(0)
+
+  useEffect(() => {
+    if (!memberId) return
+    supabase
+      .from('diet_plans')
+      .select('*')
+      .eq('member_id', memberId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => { setPlan(data); setPlanLoading(false) })
+  }, [memberId])
+
+  const waLink = trainerPhone
+    ? generateWhatsAppLink(trainerPhone, `Hi, can you create a diet plan for me? - ${memberName}`)
+    : null
+
+  if (planLoading) {
+    return (
+      <div className="bg-white rounded-xl p-4 border border-gray-100 mb-4 animate-pulse">
+        <div className="h-4 bg-gray-100 rounded w-1/3 mb-3" />
+        <div className="h-20 bg-gray-100 rounded" />
+      </div>
+    )
+  }
+
+  if (!plan) {
+    return (
+      <div className="bg-white rounded-xl p-5 border border-gray-100 mb-4 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto mb-3">
+          <Utensils size={22} className="text-orange-400" />
+        </div>
+        <p className="text-sm font-semibold text-gray-700 mb-1">No diet plan yet</p>
+        <p className="text-xs text-gray-400 mb-3">Your trainer hasn't assigned a diet plan yet.</p>
+        {waLink && (
+          <a href={waLink} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs bg-green-50 text-green-700 px-3 py-2 rounded-btn hover:bg-green-100 transition-colors"
+          >
+            <MessageCircle size={12} /> Ask your trainer
+          </a>
+        )}
+      </div>
+    )
+  }
+
+  const meals = plan.plan_data?.meals || []
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden mb-4">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-50" style={{ borderLeft: '3px solid #F97316' }}>
+        <p className="text-xs text-gray-400 mb-0.5">Your diet plan</p>
+        <p className="text-base font-bold text-gray-800">{plan.name}</p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          {plan.goal && (
+            <span className="text-[11px] bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-medium">{plan.goal}</span>
+          )}
+          {plan.calories_target && (
+            <span className="text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{plan.calories_target} kcal/day</span>
+          )}
+        </div>
+        {(plan.protein_g || plan.carbs_g || plan.fat_g) && (
+          <div className="flex gap-2 mt-2 flex-wrap">
+            {plan.protein_g && <span className="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">Protein: {plan.protein_g}g</span>}
+            {plan.carbs_g   && <span className="text-[11px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full font-medium">Carbs: {plan.carbs_g}g</span>}
+            {plan.fat_g     && <span className="text-[11px] bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-medium">Fat: {plan.fat_g}g</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Meal list */}
+      {meals.length > 0 ? (
+        <div className="divide-y divide-gray-50">
+          {meals.map((meal, i) => (
+            <div key={i}>
+              <button
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                onClick={() => setExpandedMeal(expandedMeal === i ? -1 : i)}
+              >
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-gray-800">{meal.name}</p>
+                  {meal.time && <p className="text-xs text-gray-400">{meal.time}</p>}
+                </div>
+                {expandedMeal === i ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+              </button>
+              {expandedMeal === i && (meal.items || []).length > 0 && (
+                <div className="px-4 pb-3 space-y-1.5">
+                  {meal.items.map((item, j) => (
+                    <div key={j} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">{item.name}</p>
+                        {item.quantity && <p className="text-[10px] text-gray-400">{item.quantity}</p>}
+                      </div>
+                      <div className="text-right">
+                        {item.calories && <p className="text-xs font-semibold text-gray-700">{item.calories} kcal</p>}
+                        {item.protein  && <p className="text-[10px] text-gray-400">{item.protein}g protein</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 text-center py-4">No meals listed in this plan</p>
+      )}
+
+      {plan.notes && (
+        <div className="px-4 pb-4">
+          <p className="text-xs text-gray-500 bg-amber-50 rounded-lg p-2.5">📝 {plan.notes}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -415,6 +537,15 @@ export default function MemberHealth() {
           </div>
         )}
       </div>
+
+      {/* Diet Plan */}
+      {member && (
+        <DietPlanViewer
+          memberId={member.id}
+          trainerPhone={member.trainers?.phone}
+          memberName={member.name}
+        />
+      )}
 
       {/* Workout Plan */}
       {member && (

@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Home, User, Calendar, Heart, Grid, LogOut, CreditCard } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useGymStore } from '../../store/useGymStore'
@@ -33,6 +34,10 @@ function Initials({ name }) {
 export default function MemberPortalLayout({ children, title = 'MLC Gym' }) {
   const { userName } = useRole()
   const navigate     = useNavigate()
+
+  useEffect(() => {
+    document.title = `${title} — FitBook`
+  }, [title])
 
   async function handleLogout() {
     await supabase.auth.signOut()

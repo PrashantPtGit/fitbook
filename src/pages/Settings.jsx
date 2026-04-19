@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, CreditCard, User, Lock, Save, Plus, Check } from 'lucide-react'
+import { Building2, CreditCard, User, Lock, Save, Plus, Check, Cpu, X as XIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AppLayout from '../components/layout/AppLayout'
 import { supabase, supabaseReady } from '../lib/supabase'
@@ -250,7 +250,121 @@ function PlansSection() {
   )
 }
 
-// ─── Section 3: Owner profile + password ─────────────────────────────────────
+// ─── Section 3: Attendance devices ───────────────────────────────────────────
+function DevicesSection() {
+  const activeGymId = useGymStore((s) => s.activeGymId)
+  const [devices,  setDevices]  = useState([])
+  const [showAdd,  setShowAdd]  = useState(false)
+  const [adding,   setAdding]   = useState(false)
+  const [newDev,   setNewDev]   = useState({ name: '', ip_address: '', port: '8080', device_type: 'hikvision' })
+
+  useEffect(() => {
+    if (!supabaseReady || !activeGymId) return
+    supabase.from('fingerprint_devices').select('*').eq('gym_id', activeGymId).order('created_at')
+      .then(({ data }) => setDevices(data || []))
+  }, [activeGymId])
+
+  async function addDevice() {
+    if (!newDev.name || !newDev.ip_address || !activeGymId) return
+    setAdding(true)
+    const { data, error } = await supabase.from('fingerprint_devices').insert({
+      gym_id:      activeGymId,
+      name:        newDev.name,
+      ip_address:  newDev.ip_address,
+      port:        Number(newDev.port) || 8080,
+      device_type: newDev.device_type,
+    }).select().single()
+    setAdding(false)
+    if (error) { toast.error(error.message); return }
+    setDevices(d => [...d, data])
+    setNewDev({ name: '', ip_address: '', port: '8080', device_type: 'hikvision' })
+    setShowAdd(false)
+    toast.success('Device added')
+  }
+
+  async function removeDevice(id) {
+    const { error } = await supabase.from('fingerprint_devices').delete().eq('id', id)
+    if (error) { toast.error(error.message); return }
+    setDevices(d => d.filter(dev => dev.id !== id))
+    toast.success('Device removed')
+  }
+
+  return (
+    <Section icon={Cpu} title="Attendance devices" subtitle="Manage Hikvision / biometric machines">
+      {devices.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {devices.map(dev => (
+            <div key={dev.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div className="w-7 h-7 rounded-lg bg-primary-light flex items-center justify-center shrink-0">
+                <Cpu size={13} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{dev.name}</p>
+                <p className="text-xs text-gray-400">{dev.ip_address}:{dev.port} · {dev.device_type}</p>
+              </div>
+              <button
+                onClick={() => removeDevice(dev.id)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-danger hover:bg-danger-light transition-colors"
+              >
+                <XIcon size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {devices.length === 0 && !showAdd && (
+        <p className="text-sm text-gray-400 py-2 mb-3">No devices added yet. Add your Hikvision fingerprint machine below.</p>
+      )}
+
+      {!showAdd ? (
+        <button onClick={() => setShowAdd(true)} className="btn-secondary flex items-center gap-1.5">
+          <Plus size={14} /> Add device
+        </button>
+      ) : (
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold text-gray-500 mb-3">New device</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <Field label="Device name">
+              <input className="input" placeholder="e.g. Main Entrance" value={newDev.name}
+                onChange={e => setNewDev(d => ({ ...d, name: e.target.value }))} />
+            </Field>
+            <Field label="IP address">
+              <input className="input" placeholder="e.g. 192.168.1.100" value={newDev.ip_address}
+                onChange={e => setNewDev(d => ({ ...d, ip_address: e.target.value }))} />
+            </Field>
+            <Field label="Port">
+              <input type="number" className="input" value={newDev.port}
+                onChange={e => setNewDev(d => ({ ...d, port: e.target.value }))} />
+            </Field>
+            <Field label="Device type">
+              <select className="input" value={newDev.device_type}
+                onChange={e => setNewDev(d => ({ ...d, device_type: e.target.value }))}>
+                <option value="hikvision">Hikvision</option>
+                <option value="zkteco">ZKTeco</option>
+                <option value="essl">eSSL</option>
+                <option value="other">Other</option>
+              </select>
+            </Field>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowAdd(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button
+              onClick={addDevice}
+              disabled={adding || !newDev.name || !newDev.ip_address}
+              className="btn-primary flex items-center gap-1.5 flex-1 justify-center disabled:opacity-60"
+            >
+              <Plus size={14} />
+              {adding ? 'Adding…' : 'Add device'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+// ─── Section 4: Owner profile + password ─────────────────────────────────────
 function OwnerSection() {
   const [profile,  setProfile]  = useState({ name: '', phone: '', email: '' })
   const [pwd,      setPwd]      = useState({ current: '', next: '', confirm: '' })
@@ -355,6 +469,7 @@ export default function Settings() {
       <div className="max-w-2xl">
         <GymDetailsSection gyms={gyms} />
         <PlansSection />
+        <DevicesSection />
         <OwnerSection />
       </div>
     </AppLayout>
