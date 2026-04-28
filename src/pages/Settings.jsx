@@ -256,7 +256,7 @@ function DevicesSection() {
   const [devices,  setDevices]  = useState([])
   const [showAdd,  setShowAdd]  = useState(false)
   const [adding,   setAdding]   = useState(false)
-  const [newDev,   setNewDev]   = useState({ name: '', ip_address: '', port: '8080', device_type: 'hikvision' })
+  const [newDev,   setNewDev]   = useState({ deviceName: '', ipAddress: '', port: '8080', device_type: 'hikvision' })
 
   useEffect(() => {
     if (!supabaseReady || !activeGymId) return
@@ -265,19 +265,20 @@ function DevicesSection() {
   }, [activeGymId])
 
   async function addDevice() {
-    if (!newDev.name || !newDev.ip_address || !activeGymId) return
+    if (!newDev.deviceName || !newDev.ipAddress || !activeGymId) return
     setAdding(true)
     const { data, error } = await supabase.from('fingerprint_devices').insert({
       gym_id:      activeGymId,
-      name:        newDev.name,
-      ip_address:  newDev.ip_address,
-      port:        Number(newDev.port) || 8080,
+      device_name: newDev.deviceName,
+      device_ip:   newDev.ipAddress,
+      device_port: parseInt(newDev.port) || 80,
       device_type: newDev.device_type,
+      is_active:   true,
     }).select().single()
     setAdding(false)
     if (error) { toast.error(error.message); return }
     setDevices(d => [...d, data])
-    setNewDev({ name: '', ip_address: '', port: '8080', device_type: 'hikvision' })
+    setNewDev({ deviceName: '', ipAddress: '', port: '8080', device_type: 'hikvision' })
     setShowAdd(false)
     toast.success('Device added')
   }
@@ -299,8 +300,8 @@ function DevicesSection() {
                 <Cpu size={13} className="text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800 truncate">{dev.name}</p>
-                <p className="text-xs text-gray-400">{dev.ip_address}:{dev.port} · {dev.device_type}</p>
+                <p className="text-sm font-semibold text-gray-800 truncate">{dev.device_name}</p>
+                <p className="text-xs text-gray-400">{dev.device_ip}:{dev.device_port} · {dev.device_type}</p>
               </div>
               <button
                 onClick={() => removeDevice(dev.id)}
@@ -326,12 +327,12 @@ function DevicesSection() {
           <p className="text-xs font-semibold text-gray-500 mb-3">New device</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <Field label="Device name">
-              <input className="input" placeholder="e.g. Main Entrance" value={newDev.name}
-                onChange={e => setNewDev(d => ({ ...d, name: e.target.value }))} />
+              <input className="input" placeholder="e.g. Main Entrance" value={newDev.deviceName}
+                onChange={e => setNewDev(d => ({ ...d, deviceName: e.target.value }))} />
             </Field>
             <Field label="IP address">
-              <input className="input" placeholder="e.g. 192.168.1.100" value={newDev.ip_address}
-                onChange={e => setNewDev(d => ({ ...d, ip_address: e.target.value }))} />
+              <input className="input" placeholder="e.g. 192.168.1.100" value={newDev.ipAddress}
+                onChange={e => setNewDev(d => ({ ...d, ipAddress: e.target.value }))} />
             </Field>
             <Field label="Port">
               <input type="number" className="input" value={newDev.port}
@@ -351,7 +352,7 @@ function DevicesSection() {
             <button onClick={() => setShowAdd(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button
               onClick={addDevice}
-              disabled={adding || !newDev.name || !newDev.ip_address}
+              disabled={adding || !newDev.deviceName || !newDev.ipAddress}
               className="btn-primary flex items-center gap-1.5 flex-1 justify-center disabled:opacity-60"
             >
               <Plus size={14} />
