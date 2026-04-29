@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit2, Trash2, PauseCircle, PlayCircle,
   Phone, Calendar, User, MapPin, Heart,
-  Activity, CreditCard, MessageCircle, Clock, Fingerprint,
+  Activity, CreditCard, MessageCircle, Clock, Fingerprint, Shield,
 } from 'lucide-react'
 import { differenceInDays, format, parseISO, isValid, startOfMonth, subMonths } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -16,6 +16,7 @@ import PaymentHistory from '../components/members/PaymentHistory'
 import EditMemberModal from '../components/members/EditMemberModal'
 import ConfirmModal from '../components/ui/ConfirmModal'
 import { supabase, supabaseReady } from '../lib/supabase'
+import { syncMemberToHikvision } from '../lib/hikvisionSync'
 import {
   getMembershipStatus, formatDate, formatCurrency, daysFromNow,
   generateWhatsAppLink, buildRenewalMessage, buildPaymentReceiptMessage,
@@ -72,6 +73,7 @@ export default function MemberProfile() {
   const [createModal,  setCreateModal]  = useState(false)
   const [newPassword,  setNewPassword]  = useState('')
   const [creating,     setCreating]     = useState(false)
+  const [machineLoading, setMachineLoading] = useState(false)
 
   // Check portal account status when member loads
   useEffect(() => {
@@ -216,6 +218,22 @@ export default function MemberProfile() {
     if (error) { toast.error(error.message); return }
     toast.success(`${member.name} has been removed`)
     navigate('/members')
+  }
+
+  async function handleMachineAction(action) {
+    setMachineLoading(true)
+    const endDate = membership?.end_date
+      ? new Date(membership.end_date).toISOString().split('T')[0]
+      : null
+    const result = await syncMemberToHikvision(supabase, member.id, member.gym_id, action, endDate)
+    setMachineLoading(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else if (result.method === 'queued') {
+      toast.success(action === 'disable' ? 'Block queued — will apply within 1 minute' : 'Unblock queued — will apply within 1 minute')
+    } else {
+      toast.success(action === 'disable' ? 'Member blocked on machine' : 'Member unblocked on machine')
+    }
   }
 
   async function handlePauseResume() {
@@ -475,6 +493,45 @@ export default function MemberProfile() {
                 </div>
               )}
             </div>
+
+            {/* Machine Access Status */}
+            {member.fingerprint_id && (
+              <div className="card">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <Shield size={14} className="text-gray-400" /> Machine Access
+                </h3>
+                {memStatus?.status === 'expired' ? (
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1 text-xs bg-danger-light text-danger px-2.5 py-1 rounded-full font-medium">
+                      Blocked on machine
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1 text-xs bg-success-light text-success-dark px-2.5 py-1 rounded-full font-medium">
+                      Active on machine
+                    </span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleMachineAction('disable')}
+                    disabled={machineLoading}
+                    className="flex-1 text-xs font-medium px-3 py-1.5 rounded-btn border border-danger-light text-danger hover:bg-danger hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {machineLoading ? '…' : 'Block now'}
+                  </button>
+                  <button
+                    onClick={() => handleMachineAction('enable')}
+                    disabled={machineLoading}
+                    className="flex-1 text-xs font-medium px-3 py-1.5 rounded-btn border border-success-light text-success-dark hover:bg-success hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {machineLoading ? '…' : 'Unblock'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">FP ID: {member.fingerprint_id}</p>
+              </div>
+            )}
 
             {/* WhatsApp actions */}
             <div className="card">

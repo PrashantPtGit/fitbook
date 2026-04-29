@@ -16,6 +16,7 @@ import { SkeletonCard } from '../components/ui/Skeleton'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useGymStore } from '../store/useGymStore'
 import { collectFee } from '../hooks/usePayments'
+import { syncMemberToHikvision } from '../lib/hikvisionSync'
 import {
   getMembershipStatus, formatDate, formatCurrency, todayISO, dateISO,
   generateWhatsAppLink, buildPaymentReceiptMessage,
@@ -149,7 +150,25 @@ export default function CollectFee() {
         note:           data.note || null,
       })
 
-      toast.success(`✓ Payment recorded for ${member.name}`)
+      // Sync machine access
+      const computedEndDate = selectedPlan
+        ? dateISO(addDays(new Date(data.payment_date), selectedPlan.duration_days))
+        : null
+
+      if (computedEndDate && member.gym_id) {
+        const syncResult = await syncMemberToHikvision(
+          supabase, member.id, member.gym_id, 'enable', computedEndDate
+        )
+        if (syncResult.success && syncResult.method === 'queued') {
+          toast.success('Payment saved! Machine will update within 1 minute')
+        } else if (syncResult.success) {
+          toast.success('Payment saved + machine updated!')
+        } else {
+          toast.success('Payment saved! Update machine manually if needed.')
+        }
+      } else {
+        toast.success(`Payment recorded for ${member.name}`)
+      }
 
       if (sendWhatsApp && member.phone) {
         const msg = buildPaymentReceiptMessage(
