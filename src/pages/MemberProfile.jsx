@@ -213,7 +213,18 @@ export default function MemberProfile() {
 
   async function handleDelete() {
     setActioning(true)
-    const { error } = await supabase.from('members').update({ status: 'deleted' }).eq('id', member.id)
+    const mid = member.id
+    const steps = [
+      supabase.from('hikvision_commands').delete().eq('member_id', mid),
+      supabase.from('attendance').delete().eq('member_id', mid),
+      supabase.from('payments').delete().eq('member_id', mid),
+      supabase.from('memberships').delete().eq('member_id', mid),
+    ]
+    for (const step of steps) {
+      const { error } = await step
+      if (error) { setActioning(false); toast.error(error.message); return }
+    }
+    const { error } = await supabase.from('members').delete().eq('id', mid)
     setActioning(false)
     if (error) { toast.error(error.message); return }
     toast.success(`${member.name} has been removed`)

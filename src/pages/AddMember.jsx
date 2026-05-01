@@ -158,8 +158,7 @@ function SuccessModal({ data, onAddAnother, onViewProfile }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AddMember() {
   const navigate    = useNavigate()
-  const { gyms }    = useGymStore()
-  const activeGymId = useGymStore((s) => s.activeGymId)
+  const { gyms, activeGymId, userRole, userGymId } = useGymStore()
 
   const [trainers,    setTrainers]    = useState([])
   const [plans,       setPlans]       = useState([])
@@ -202,6 +201,12 @@ export default function AddMember() {
     : null
 
   const activePassword = pwdMode === 'auto' ? generatedPwd : customPwd
+
+  // Lock gym for co_owner / staff
+  const isRestricted = userRole === 'co_owner' || userRole === 'staff'
+  useEffect(() => {
+    if (isRestricted && userGymId) setValue('gym_id', userGymId)
+  }, [isRestricted, userGymId, setValue])
 
   // Fetch trainers when gym changes
   useEffect(() => {
@@ -323,7 +328,7 @@ export default function AddMember() {
     setSuccessData(null)
     setNewMemberId(null)
     reset({
-      gym_id: activeGymId || '',
+      gym_id: isRestricted ? (userGymId || '') : (activeGymId || ''),
       start_date: todayISO(),
       payment_mode: 'upi',
       payment_amount: 0,
@@ -412,14 +417,16 @@ export default function AddMember() {
         {/* ── Section 2: Gym & batch ── */}
         <Section title="Gym & batch" subtitle="Which gym and time slot">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Field label="Gym" required error={errors.gym_id}>
-              <select {...register('gym_id')} className="input">
-                <option value="">Select gym</option>
-                {gyms.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            </Field>
+            {!isRestricted && (
+              <Field label="Gym" required error={errors.gym_id}>
+                <select {...register('gym_id')} className="input">
+                  <option value="">Select gym</option>
+                  {gyms.map((g) => (
+                    <option key={g.id} value={g.id}>{g.location || g.name}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
             <Field label="Batch timing" required error={errors.batch_timing}>
               <select {...register('batch_timing')} className="input">
