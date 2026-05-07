@@ -35,7 +35,7 @@ export const syncMemberToHikvision = async (supabase, memberId, gymId, action, e
       .insert({
         gym_id: gymId,
         member_id: memberId,
-        command_type: action === 'disable' ? 'disable_user' : 'update_validity',
+        command_type: action === 'disable' ? 'disable_user' : 'enable_user',
         payload: {
           employeeNo: member.fingerprint_id,
           endDate: endDate,
