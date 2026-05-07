@@ -1,10 +1,12 @@
 export const syncMemberToHikvision = async (supabase, memberId, gymId, action, endDate) => {
-  const { data: device } = await supabase
+  const { data: devices } = await supabase
     .from('fingerprint_devices')
     .select('*')
     .eq('gym_id', gymId)
     .eq('is_active', true)
-    .single()
+    .limit(1)
+
+  const device = devices?.[0]
 
   if (!device) return { error: 'No device found for this gym' }
 
