@@ -160,6 +160,10 @@ export default function AddMember() {
   const navigate    = useNavigate()
   const { gyms, activeGymId, userRole, userGymId } = useGymStore()
 
+  // Determine role restriction before useForm so defaultValues are correct on first render
+  const isRestricted = userRole === 'co_owner' || userRole === 'staff'
+  const defaultGymId = isRestricted ? (userGymId || '') : (activeGymId || '')
+
   const [trainers,    setTrainers]    = useState([])
   const [plans,       setPlans]       = useState([])
   const [submitting,  setSubmitting]  = useState(false)
@@ -180,7 +184,7 @@ export default function AddMember() {
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      gym_id:         activeGymId || '',
+      gym_id:         defaultGymId,
       start_date:     todayISO(),
       payment_mode:   'upi',
       payment_amount: 0,
@@ -202,8 +206,7 @@ export default function AddMember() {
 
   const activePassword = pwdMode === 'auto' ? generatedPwd : customPwd
 
-  // Lock gym for co_owner / staff
-  const isRestricted = userRole === 'co_owner' || userRole === 'staff'
+  // Safety net: re-apply locked gym if userGymId loads after form init
   useEffect(() => {
     if (isRestricted && userGymId) setValue('gym_id', userGymId)
   }, [isRestricted, userGymId, setValue])
@@ -328,7 +331,7 @@ export default function AddMember() {
     setSuccessData(null)
     setNewMemberId(null)
     reset({
-      gym_id: isRestricted ? (userGymId || '') : (activeGymId || ''),
+      gym_id: defaultGymId,
       start_date: todayISO(),
       payment_mode: 'upi',
       payment_amount: 0,
