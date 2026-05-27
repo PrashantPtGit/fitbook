@@ -4,7 +4,8 @@ import { Toaster } from 'react-hot-toast'
 import Spinner from './components/ui/Spinner'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { useRole } from './hooks/useRole'
-import { supabase } from './lib/supabase'
+import { supabase, supabaseReady } from './lib/supabase'
+import { useGymStore } from './store/useGymStore'
 
 // ── Staff pages ───────────────────────────────────────────────────────────────
 const Login         = lazy(() => import('./pages/Login'))
@@ -38,13 +39,69 @@ const PageLoader = () => (
   </div>
 )
 
-// ── Staff-only route: members/co-owners only, redirect members to /member-portal
+// ── Restores Supabase session on page refresh before any route renders.
+// Without this, roleLoading stays true forever because useGymsData (which sets
+// the role) lives inside AppLayout → inside Home → gated by StaffRoute itself.
+function AuthInit({ children }) {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!supabaseReady) {
+      // No real credentials — dev mode. Set a stub role so StaffRoute lets through;
+      // useGymsData inside AppLayout will overwrite with full mock setup.
+      useGymStore.getState().setUserRole('main_admin', null, 'Dev User')
+      setReady(true)
+      return
+    }
+
+    async function initSession() {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role, gym_id, name')
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (roleData) {
+          useGymStore.getState().setUserRole(roleData.role, roleData.gym_id, roleData.name)
+        } else {
+          // Session exists but not in user_roles → treat as member
+          useGymStore.getState().setUserRole('member', null, session.user.email?.split('@')[0] || '')
+        }
+      } else {
+        // No active session — mark check done so StaffRoute can redirect to /login
+        useGymStore.getState().setUserRole(null, null, null)
+      }
+
+      setReady(true)
+    }
+
+    initSession()
+
+    // Handle future auth events (sign-out from any tab, token expiry, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        useGymStore.getState().resetStore()
+        // resetStore leaves roleLoading: true — clear it so StaffRoute can redirect
+        useGymStore.getState().setUserRole(null, null, null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (!ready) return <PageLoader />
+  return children
+}
+
+// ── Staff-only route: redirects to /login if not authenticated
 function StaffRoute({ children }) {
   const { userRole, roleLoading } = useRole()
   if (roleLoading) return <PageLoader />
+  if (!userRole) return <Navigate to="/login" replace />
   if (userRole === 'member') return <Navigate to="/member-portal" replace />
-  if (userRole === 'main_admin' || userRole === 'co_owner') return children
-  // No role yet (supabase not ready / dev mode) — allow through
   return children
 }
 
@@ -80,6 +137,7 @@ export default function App() {
           error:   { duration: 5000 },
         }}
       />
+      <AuthInit>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public */}
@@ -113,6 +171,7 @@ export default function App() {
           <Route path="*"    element={<NotFound />} />
         </Routes>
       </Suspense>
+      </AuthInit>
     </ErrorBoundary>
   )
 }
