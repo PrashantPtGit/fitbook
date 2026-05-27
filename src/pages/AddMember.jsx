@@ -211,14 +211,20 @@ export default function AddMember() {
     if (isRestricted && userGymId) setValue('gym_id', userGymId)
   }, [isRestricted, userGymId, setValue])
 
-  // Fetch trainers when gym changes
+  // Fetch trainers when gym changes; deduplicate by name to guard against
+  // duplicate DB rows created by repeated seed runs
   useEffect(() => {
     if (!supabaseReady || !watchedGymId) return
     supabase
       .from('trainers')
       .select('id, name')
       .eq('gym_id', watchedGymId)
-      .then(({ data }) => setTrainers(data || []))
+      .order('name')
+      .then(({ data }) => {
+        const seen = new Set()
+        const unique = (data || []).filter((t) => !seen.has(t.name) && seen.add(t.name))
+        setTrainers(unique)
+      })
   }, [watchedGymId])
 
   // Fetch plans when gym changes

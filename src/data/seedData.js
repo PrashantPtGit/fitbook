@@ -64,14 +64,25 @@ export async function seedDatabase() {
     .from('gyms').select('*').order('created_at')
   if (gymErr || !gyms?.length) { console.error('seedDatabase: no gyms found', gymErr); return }
 
-  // Insert trainers and collect their IDs
+  // Insert trainers only if they don't already exist for this gym
+  // (guards against duplicate rows when seed reruns after member deletion)
   const trainerIdsByGymIdx = {}
   for (let i = 0; i < gyms.length && i < 3; i++) {
     const key  = `gym${i + 1}`
     const tpls = TRAINERS[key] || []
-    const rows = tpls.map((t) => ({ ...t, gym_id: gyms[i].id }))
-    const { data: inserted } = await supabase.from('trainers').insert(rows).select('id')
-    trainerIdsByGymIdx[i] = (inserted || []).map((t) => t.id)
+
+    const { data: existing } = await supabase
+      .from('trainers').select('id, name').eq('gym_id', gyms[i].id)
+    const existingNames = new Set((existing || []).map((t) => t.name))
+    const toInsert = tpls.filter((t) => !existingNames.has(t.name))
+
+    let allIds = (existing || []).map((t) => t.id)
+    if (toInsert.length > 0) {
+      const rows = toInsert.map((t) => ({ ...t, gym_id: gyms[i].id }))
+      const { data: inserted } = await supabase.from('trainers').insert(rows).select('id')
+      allIds = [...allIds, ...(inserted || []).map((t) => t.id)]
+    }
+    trainerIdsByGymIdx[i] = allIds
   }
 
   // Fetch plans for each gym

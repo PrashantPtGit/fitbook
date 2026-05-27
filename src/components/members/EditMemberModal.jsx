@@ -57,7 +57,12 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
       .from('trainers')
       .select('id, name')
       .eq('gym_id', member.gym_id)
-      .then(({ data }) => setTrainers(data || []))
+      .order('name')
+      .then(({ data }) => {
+        const seen = new Set()
+        const unique = (data || []).filter((t) => !seen.has(t.name) && seen.add(t.name))
+        setTrainers(unique)
+      })
   }, [member.gym_id])
 
   async function onSubmit(data) {
