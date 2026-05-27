@@ -213,22 +213,26 @@ export default function MemberProfile() {
 
   async function handleDelete() {
     setActioning(true)
-    const mid = member.id
-    const steps = [
-      supabase.from('hikvision_commands').delete().eq('member_id', mid),
-      supabase.from('attendance').delete().eq('member_id', mid),
-      supabase.from('payments').delete().eq('member_id', mid),
-      supabase.from('memberships').delete().eq('member_id', mid),
-    ]
-    for (const step of steps) {
-      const { error } = await step
-      if (error) { setActioning(false); toast.error(error.message); return }
+    const mid  = member.id
+    const name = member.name
+    try {
+      const { error: e1 } = await supabase.from('hikvision_commands').delete().eq('member_id', mid)
+      if (e1) throw e1
+      const { error: e2 } = await supabase.from('attendance').delete().eq('member_id', mid)
+      if (e2) throw e2
+      const { error: e3 } = await supabase.from('payments').delete().eq('member_id', mid)
+      if (e3) throw e3
+      const { error: e4 } = await supabase.from('memberships').delete().eq('member_id', mid)
+      if (e4) throw e4
+      const { error: e5 } = await supabase.from('members').delete().eq('id', mid)
+      if (e5) throw e5
+      toast.success(`${name} has been deleted`)
+      navigate('/members')
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete member')
+    } finally {
+      setActioning(false)
     }
-    const { error } = await supabase.from('members').delete().eq('id', mid)
-    setActioning(false)
-    if (error) { toast.error(error.message); return }
-    toast.success(`${member.name} has been removed`)
-    navigate('/members')
   }
 
   async function handleMachineAction(action) {
@@ -678,9 +682,9 @@ export default function MemberProfile() {
         isOpen={deleteModal}
         onCancel={() => setDeleteModal(false)}
         onConfirm={handleDelete}
-        title={`Delete ${member.name}?`}
-        message="This cannot be undone. The member will be hidden from all lists."
-        confirmText={actioning ? 'Deleting…' : 'Delete'}
+        title={`Are you sure you want to delete ${member.name}?`}
+        message="This will permanently remove all their attendance records, payments, and membership history. This cannot be undone."
+        confirmText={actioning ? 'Deleting…' : 'Delete permanently'}
         danger
       />
 
