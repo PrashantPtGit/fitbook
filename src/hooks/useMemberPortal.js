@@ -39,7 +39,7 @@ export function useMemberPortal() {
       const [memberRes, membershipRes, paymentsRes, attendanceRes] = await Promise.all([
         supabase
           .from('members')
-          .select('*, gyms(name, location, phone), trainers(name, phone)')
+          .select('*, gyms(name, location, phone), trainers(name, title, phone)')
           .eq('id', memberId)
           .maybeSingle(),
 

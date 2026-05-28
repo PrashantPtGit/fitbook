@@ -55,7 +55,7 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
     if (!supabaseReady || !member.gym_id) return
     supabase
       .from('trainers')
-      .select('id, name')
+      .select('id, name, title')
       .eq('gym_id', member.gym_id)
       .order('name')
       .then(({ data }) => {
@@ -159,7 +159,7 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
             <Field label="Trainer" error={errors.trainer_id}>
               <select {...register('trainer_id')} className="input">
                 <option value="">No trainer</option>
-                {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {trainers.map((t) => <option key={t.id} value={t.id}>{t.title ? `${t.name} — ${t.title}` : t.name}</option>)}
               </select>
             </Field>
 

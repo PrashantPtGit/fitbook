@@ -84,7 +84,7 @@ export default function CollectFee() {
       const [memberRes, plansRes] = await Promise.all([
         supabase
           .from('members')
-          .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
+          .select('*, memberships(*, plans(name, duration_days, price)), trainers(name, title), gyms(name, location)')
           .eq('id', id)
           .single(),
         supabase

@@ -4,7 +4,7 @@ import MemberPortalLayout from './MemberPortalLayout'
 import { useMemberPortal } from '../../hooks/useMemberPortal'
 import { formatDate, formatCurrency, daysFromNow } from '../../utils/helpers'
 
-function Row({ icon: Icon, label, value }) {
+function Row({ icon: Icon, label, value, subtitle }) {
   if (!value) return null
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0">
@@ -12,6 +12,7 @@ function Row({ icon: Icon, label, value }) {
       <div>
         <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
         <p className="text-sm text-gray-800">{value}</p>
+        {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
       </div>
     </div>
   )
@@ -96,7 +97,7 @@ export default function MemberProfile() {
         <Row icon={MapPin}   label="Address"          value={member.address} />
         <Row icon={Calendar} label="Member since"     value={formatDate(member.created_at)} />
         <Row icon={Clock}    label="Batch timing"     value={member.batch_timing} />
-        <Row icon={User}     label="Trainer"          value={member.trainers?.name} />
+        <Row icon={User}     label="Trainer"          value={member.trainers?.name} subtitle={member.trainers?.title || undefined} />
       </Card>
 
       {/* Current membership */}

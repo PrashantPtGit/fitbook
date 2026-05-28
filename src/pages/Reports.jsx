@@ -138,7 +138,7 @@ function ExportModal({ isOpen, onClose, gymId, payments, dailyAttData, monthLabe
     try {
       if (checks.members) {
         const { data } = await supabase.from('members')
-          .select('*, memberships(start_date, end_date, status, plans(name, price)), trainers(name)')
+          .select('*, memberships(start_date, end_date, status, plans(name, price)), trainers(name, title)')
           .eq('gym_id', gymId)
         exportMembersCSV(data || [])
         await new Promise((r) => setTimeout(r, 400))

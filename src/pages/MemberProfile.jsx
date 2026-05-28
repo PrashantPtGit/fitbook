@@ -152,7 +152,7 @@ function EditMembershipModal({ member, membership, onClose, onSaved }) {
 const TABS = ['Overview', 'Attendance', 'Payments']
 
 // ─── Small detail row ─────────────────────────────────────────────────────────
-function DetailRow({ icon: Icon, label, value }) {
+function DetailRow({ icon: Icon, label, value, subtitle }) {
   if (!value) return null
   return (
     <div className="flex items-start gap-2.5 py-2">
@@ -160,6 +160,7 @@ function DetailRow({ icon: Icon, label, value }) {
       <div className="min-w-0">
         <p className="text-xs text-gray-400">{label}</p>
         <p className="text-sm text-gray-800 break-words">{value}</p>
+        {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
       </div>
     </div>
   )
@@ -237,7 +238,7 @@ export default function MemberProfile() {
       const [memberRes, paymentsRes, attendanceRes] = await Promise.all([
         supabase
           .from('members')
-          .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
+          .select('*, memberships(*, plans(name, duration_days, price)), trainers(name, title), gyms(name, location)')
           .eq('id', id)
           .single(),
 
@@ -394,7 +395,7 @@ export default function MemberProfile() {
     setEditMembershipOpen(false)
     supabase
       .from('members')
-      .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
+      .select('*, memberships(*, plans(name, duration_days, price)), trainers(name, title), gyms(name, location)')
       .eq('id', id)
       .single()
       .then(({ data }) => { if (data) setMember(data) })
@@ -507,7 +508,7 @@ export default function MemberProfile() {
                 <DetailRow icon={Phone}       label="Emergency contact" value={member.emergency_contact} />
                 <DetailRow icon={Heart}       label="Health notes"     value={member.health_notes} />
                 <DetailRow icon={Fingerprint} label="Fingerprint ID"   value={member.fingerprint_id ? String(member.fingerprint_id) : null} />
-                <DetailRow icon={User}        label="Trainer"          value={member.trainers?.name} />
+                <DetailRow icon={User}        label="Trainer"          value={member.trainers?.name} subtitle={member.trainers?.title || undefined} />
               </div>
             </div>
 
@@ -899,7 +900,7 @@ export default function MemberProfile() {
             // Refetch updated member data
             supabase
               .from('members')
-              .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
+              .select('*, memberships(*, plans(name, duration_days, price)), trainers(name, title), gyms(name, location)')
               .eq('id', id)
               .single()
               .then(({ data }) => { if (data) setMember(data) })

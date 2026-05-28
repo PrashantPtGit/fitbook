@@ -37,7 +37,7 @@ const MemberHome = () => {
 
         const { data: memberData } = await supabase
           .from('members')
-          .select('*, gyms(name), trainers(name, phone)')
+          .select('*, gyms(name), trainers(name, title, phone)')
           .eq('id', account.member_id)
           .maybeSingle()
 

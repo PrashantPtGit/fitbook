@@ -217,7 +217,7 @@ export default function AddMember() {
     if (!supabaseReady || !watchedGymId) return
     supabase
       .from('trainers')
-      .select('id, name')
+      .select('id, name, title')
       .eq('gym_id', watchedGymId)
       .order('name')
       .then(({ data }) => {
@@ -448,7 +448,7 @@ export default function AddMember() {
               <select {...register('trainer_id')} className="input">
                 <option value="">No trainer</option>
                 {trainers.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                  <option key={t.id} value={t.id}>{t.title ? `${t.name} — ${t.title}` : t.name}</option>
                 ))}
               </select>
             </Field>
