@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit2, Trash2, PauseCircle, PlayCircle,
   Phone, Calendar, User, MapPin, Heart,
-  Activity, CreditCard, MessageCircle, Clock, Fingerprint, Shield,
+  Activity, CreditCard, MessageCircle, Clock, Fingerprint, Shield, Pencil, X as XIcon,
 } from 'lucide-react'
-import { differenceInDays, format, parseISO, isValid, startOfMonth, subMonths } from 'date-fns'
+import { differenceInDays, format, parseISO, isValid, startOfMonth, subMonths, addDays } from 'date-fns'
 import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import AppLayout from '../components/layout/AppLayout'
@@ -23,6 +23,130 @@ import {
 } from '../utils/helpers'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { createMemberAccount, getMemberAccountStatus } from '../scripts/createMemberAccount'
+
+// ─── Edit Membership Modal ────────────────────────────────────────────────────
+function EditMembershipModal({ member, membership, onClose, onSaved }) {
+  const [plans,   setPlans]   = useState([])
+  const [saving,  setSaving]  = useState(false)
+  const [planId,  setPlanId]  = useState(membership?.plan_id  || '')
+  const [startDate, setStartDate] = useState(membership?.start_date || format(new Date(), 'yyyy-MM-dd'))
+  const [endDate,   setEndDate]   = useState(membership?.end_date   || '')
+  const [status,  setStatus]  = useState(membership?.status || 'active')
+
+  useEffect(() => {
+    if (!supabaseReady || !member.gym_id) return
+    supabase.from('plans').select('id, name, duration_days, price')
+      .eq('gym_id', member.gym_id).order('duration_days')
+      .then(({ data }) => setPlans(data || []))
+  }, [member.gym_id])
+
+  // Auto-calculate end date when plan or start date changes
+  useEffect(() => {
+    if (!planId || !startDate) return
+    const plan = plans.find((p) => p.id === planId)
+    if (!plan) return
+    const end = addDays(parseISO(startDate), plan.duration_days - 1)
+    setEndDate(format(end, 'yyyy-MM-dd'))
+  }, [planId, startDate, plans])
+
+  async function handleSave() {
+    if (!planId || !startDate || !endDate) {
+      toast.error('Please fill in all fields')
+      return
+    }
+    setSaving(true)
+    let error
+    if (membership?.id) {
+      ;({ error } = await supabase.from('memberships')
+        .update({ plan_id: planId, start_date: startDate, end_date: endDate, status })
+        .eq('id', membership.id))
+    } else {
+      ;({ error } = await supabase.from('memberships')
+        .insert({ member_id: member.id, gym_id: member.gym_id, plan_id: planId, start_date: startDate, end_date: endDate, status }))
+    }
+    setSaving(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Membership updated')
+    onSaved()
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-50" onClick={onClose} />
+      <div className="fixed z-50 bg-white rounded-xl shadow-xl w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <h2 className="text-sm font-semibold text-gray-800">Edit membership plan</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <XIcon size={18} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          <div className="form-group">
+            <label className="label">Plan *</label>
+            <select
+              value={planId}
+              onChange={(e) => setPlanId(e.target.value)}
+              className="input"
+            >
+              <option value="">Select plan</option>
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {p.duration_days} days (₹{p.price})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="label">Start date *</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">End date (auto-calculated)</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="input"
+            />
+            <p className="text-xs text-gray-400 mt-0.5">Calculated from plan duration. You can adjust manually.</p>
+          </div>
+
+          <div className="form-group">
+            <label className="label">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="input"
+            >
+              <option value="active">Active</option>
+              <option value="expired">Expired</option>
+              <option value="paused">Paused</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-3 shrink-0 border-t border-gray-100 pt-4">
+          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-primary flex items-center gap-2 justify-center flex-1 disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 const TABS = ['Overview', 'Attendance', 'Payments']
@@ -74,6 +198,7 @@ export default function MemberProfile() {
   const [newPassword,  setNewPassword]  = useState('')
   const [creating,     setCreating]     = useState(false)
   const [machineLoading, setMachineLoading] = useState(false)
+  const [editMembershipOpen, setEditMembershipOpen] = useState(false)
 
   // Check portal account status when member loads
   useEffect(() => {
@@ -265,6 +390,16 @@ export default function MemberProfile() {
     toast.success(isPaused ? `${member.name} reactivated` : `${member.name} paused`)
   }
 
+  function handleMembershipSaved() {
+    setEditMembershipOpen(false)
+    supabase
+      .from('members')
+      .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => { if (data) setMember(data) })
+  }
+
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -378,7 +513,16 @@ export default function MemberProfile() {
 
             {/* Membership */}
             <div className="card">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Current membership</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Current membership</h3>
+                <button
+                  onClick={() => setEditMembershipOpen(true)}
+                  className="text-gray-400 hover:text-primary transition-colors p-1 -mr-1 rounded"
+                  title="Edit membership"
+                >
+                  <Pencil size={13} />
+                </button>
+              </div>
               {membership ? (
                 <>
                   <div className="flex items-center justify-between mb-3">
@@ -733,6 +877,16 @@ export default function MemberProfile() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Edit membership modal */}
+      {editMembershipOpen && (
+        <EditMembershipModal
+          member={member}
+          membership={membership}
+          onClose={() => setEditMembershipOpen(false)}
+          onSaved={handleMembershipSaved}
+        />
       )}
 
       {/* Edit modal */}
