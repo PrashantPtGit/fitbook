@@ -433,7 +433,7 @@ export default function MemberProfile() {
 
       {/* Header card */}
       <div className="card mb-4 flex flex-wrap items-center gap-4">
-        <Avatar name={member.name} size="lg" gymIndex={0} />
+        <Avatar name={member.name} size="lg" gymIndex={0} photoUrl={member.photo_url || ''} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">

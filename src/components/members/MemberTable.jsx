@@ -94,7 +94,7 @@ export default function MemberTable({ members, loading, sort, onSort }) {
               onClick={() => navigate(`/members/${m.id}`)}
               className="flex items-center gap-3 py-3 px-1 cursor-pointer hover:bg-gray-50 transition-colors"
             >
-              <Avatar name={m.name} size="sm" gymIndex={i % 3} />
+              <Avatar name={m.name} size="sm" gymIndex={i % 3} photoUrl={m.photo_url || ''} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
                 <p className="text-xs text-gray-400 truncate">

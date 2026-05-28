@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 
 // Gradient backgrounds per gym — matches design spec
@@ -22,26 +23,40 @@ function getInitials(name = '') {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export default function Avatar({ name = '', size = 'md', gymIndex = 0, online = false }) {
+export default function Avatar({ name = '', size = 'md', gymIndex = 0, online = false, photoUrl = '' }) {
   const { cls, font } = SIZE_MAP[size] || SIZE_MAP.md
   const gradient = GYM_GRADIENTS[gymIndex % GYM_GRADIENTS.length]
+  const [imgError, setImgError] = useState(false)
+
+  useEffect(() => { setImgError(false) }, [photoUrl])
+
+  const showPhoto = !!photoUrl && !imgError
 
   return (
     <div className="relative shrink-0">
-      <div
-        className={clsx(
-          'rounded-full flex items-center justify-center font-semibold text-white select-none',
-          cls,
-        )}
-        style={{
-          background: gradient,
-          fontSize: font,
-          fontFamily: '"Plus Jakarta Sans", sans-serif',
-          letterSpacing: '0.02em',
-        }}
-      >
-        {getInitials(name)}
-      </div>
+      {showPhoto ? (
+        <img
+          src={photoUrl}
+          alt={name}
+          onError={() => setImgError(true)}
+          className={clsx('rounded-full object-cover', cls)}
+        />
+      ) : (
+        <div
+          className={clsx(
+            'rounded-full flex items-center justify-center font-semibold text-white select-none',
+            cls,
+          )}
+          style={{
+            background: gradient,
+            fontSize: font,
+            fontFamily: '"Plus Jakarta Sans", sans-serif',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {getInitials(name)}
+        </div>
+      )}
       {online && (
         <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-white animate-badge-pulse" />
       )}

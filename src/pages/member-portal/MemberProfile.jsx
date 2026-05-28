@@ -1,8 +1,11 @@
+import { useState, useRef } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
-import { User, Phone, Calendar, MapPin, Clock, CreditCard } from 'lucide-react'
+import { User, Phone, Calendar, MapPin, Clock, CreditCard, Camera } from 'lucide-react'
 import MemberPortalLayout from './MemberPortalLayout'
 import { useMemberPortal } from '../../hooks/useMemberPortal'
+import { supabase } from '../../lib/supabase'
 import { formatDate, formatCurrency, daysFromNow } from '../../utils/helpers'
+import toast from 'react-hot-toast'
 
 function Row({ icon: Icon, label, value, subtitle }) {
   if (!value) return null
@@ -31,7 +34,35 @@ function Card({ title, children, accent = false }) {
 }
 
 export default function MemberProfile() {
-  const { member, membership, payments, loading } = useMemberPortal()
+  const { member, membership, payments, loading, refetch } = useMemberPortal()
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [localPhotoUrl, setLocalPhotoUrl] = useState(null)
+  const fileInputRef = useRef(null)
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png']
+    if (!allowed.includes(file.type)) { toast.error('Only JPG and PNG photos are accepted.'); return }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Photo must be under 2MB. Please choose a smaller image.'); return }
+    setPhotoUploading(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `${member.id}_${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage.from('member-photos').upload(path, file, { upsert: true })
+      if (uploadErr) throw uploadErr
+      const { data: { publicUrl } } = supabase.storage.from('member-photos').getPublicUrl(path)
+      const { error: updateErr } = await supabase.from('members').update({ photo_url: publicUrl }).eq('id', member.id)
+      if (updateErr) throw updateErr
+      setLocalPhotoUrl(publicUrl)
+      toast.success('Profile photo saved!')
+    } catch (err) {
+      toast.error(err.message || 'Upload failed')
+    } finally {
+      setPhotoUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   if (loading) {
     return (
@@ -68,15 +99,32 @@ export default function MemberProfile() {
     ? parts[0][0] + parts[parts.length - 1][0]
     : parts[0].slice(0, 2)
 
+  const displayPhoto = localPhotoUrl || member?.photo_url || ''
+
   return (
     <MemberPortalLayout title="My Profile">
+      <input ref={fileInputRef} type="file" accept="image/jpeg,image/jpg,image/png" className="hidden" onChange={handlePhotoChange} />
+
       {/* Avatar + name hero */}
       <div className="flex items-center gap-4 mb-5">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl font-bold shrink-0"
-          style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)' }}
-        >
-          {initials.toUpperCase()}
+        <div className="relative shrink-0">
+          {displayPhoto ? (
+            <img src={displayPhoto} alt={member.name} className="w-16 h-16 rounded-2xl object-cover" />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl font-bold"
+              style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)' }}
+            >
+              {initials.toUpperCase()}
+            </div>
+          )}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={photoUploading}
+            className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-primary transition-colors disabled:opacity-50"
+          >
+            <Camera size={12} />
+          </button>
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>

@@ -221,7 +221,7 @@ export default function CollectFee() {
 
       {/* Member info card */}
       <div className="card mb-4 flex items-center gap-4 flex-wrap">
-        <Avatar name={member.name} size="lg" gymIndex={0} />
+        <Avatar name={member.name} size="lg" gymIndex={0} photoUrl={member.photo_url || ''} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base font-semibold text-gray-900">{member.name}</h2>

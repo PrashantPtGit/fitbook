@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import toast from 'react-hot-toast'
 
 const MemberHome = () => {
   const navigate = useNavigate()
@@ -8,6 +9,56 @@ const MemberHome = () => {
   const [membership, setMembership] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const fileInputRef = useRef(null)
+
+  function handleFileSelect(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png']
+    if (!allowed.includes(file.type)) {
+      toast.error('Only JPG and PNG photos are accepted.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Photo must be under 2MB. Please choose a smaller image.')
+      return
+    }
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
+  async function handlePhotoSave() {
+    if (!photoFile || !member) return
+    setPhotoUploading(true)
+    try {
+      const ext = photoFile.name.split('.').pop()
+      const path = `${member.id}_${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage
+        .from('member-photos')
+        .upload(path, photoFile, { upsert: true })
+      if (uploadErr) throw uploadErr
+      const { data: { publicUrl } } = supabase.storage.from('member-photos').getPublicUrl(path)
+      const { error: updateErr } = await supabase.from('members').update({ photo_url: publicUrl }).eq('id', member.id)
+      if (updateErr) throw updateErr
+      setMember((m) => ({ ...m, photo_url: publicUrl }))
+      setPhotoFile(null)
+      setPhotoPreview(null)
+      toast.success('Profile photo saved!')
+    } catch (err) {
+      toast.error(err.message || 'Upload failed')
+    } finally {
+      setPhotoUploading(false)
+    }
+  }
+
+  function handlePhotoCancel() {
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   useEffect(() => {
     let mounted = true
@@ -95,6 +146,49 @@ const MemberHome = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: '#F0FDF8', padding: '20px', fontFamily: 'Inter, sans-serif' }}>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png"
+        style={{ display: 'none' }}
+        onChange={handleFileSelect}
+      />
+
+      {/* Photo upload prompt — shown only when no photo set */}
+      {!member.photo_url && (
+        <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '16px', border: '1px solid #E1F5EE', textAlign: 'center' }}>
+          <p style={{ fontSize: '13px', fontWeight: '600', color: '#085041', marginBottom: '4px' }}>Complete your profile</p>
+          <p style={{ fontSize: '12px', color: '#6B6B8A', marginBottom: '16px' }}>Add your photo so your trainer can recognise you!</p>
+
+          {/* Circular avatar / preview */}
+          <div style={{ position: 'relative', width: '80px', height: '80px', margin: '0 auto 16px', borderRadius: '50%', overflow: 'hidden', background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+               onClick={() => !photoPreview && fileInputRef.current?.click()}>
+            {photoPreview
+              ? <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: '28px' }}>📷</span>
+            }
+          </div>
+
+          {!photoPreview ? (
+            <button onClick={() => fileInputRef.current?.click()}
+              style={{ padding: '10px 24px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              Upload Photo
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <button onClick={handlePhotoCancel}
+                style={{ padding: '10px 20px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handlePhotoSave} disabled={photoUploading}
+                style={{ padding: '10px 20px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', opacity: photoUploading ? 0.6 : 1 }}>
+                {photoUploading ? 'Saving…' : 'Save Photo'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', borderRadius: '16px', padding: '20px', color: 'white', marginBottom: '16px' }}>
         <p style={{ fontSize: '12px', opacity: 0.8, marginBottom: '4px' }}>Welcome back</p>

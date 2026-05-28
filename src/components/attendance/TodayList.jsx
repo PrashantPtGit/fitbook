@@ -67,7 +67,7 @@ export default function TodayList({ todayAttendance, loading, isConnected }) {
         <div className="overflow-y-auto divide-y divide-gray-50 flex-1 -mx-1 px-1">
           {todayAttendance.map((a, i) => (
             <div key={a.id || i} className="flex items-center gap-2.5 py-2.5">
-              <Avatar name={a.members?.name || '?'} size="sm" gymIndex={i % 3} />
+              <Avatar name={a.members?.name || '?'} size="sm" gymIndex={i % 3} photoUrl={a.members?.photo_url || ''} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">
                   {a.members?.name || 'Unknown'}

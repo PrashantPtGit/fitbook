@@ -62,7 +62,7 @@ export const useAttendance = () => {
         // Today's check-ins with member info
         const { data, error: fetchErr } = await supabase
           .from('attendance')
-          .select('*, members(name, member_code)')
+          .select('*, members(name, member_code, photo_url)')
           .eq('gym_id', activeGymId)
           .eq('date', today)
           .order('checked_in_at', { ascending: false })

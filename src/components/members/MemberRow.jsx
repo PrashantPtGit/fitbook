@@ -25,7 +25,7 @@ export default function MemberRow({ member, gymIndex = 0 }) {
       {/* Member */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <Avatar name={member.name} size="sm" gymIndex={gymIndex} />
+          <Avatar name={member.name} size="sm" gymIndex={gymIndex} photoUrl={member.photo_url || ''} />
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-800 truncate">{member.name}</p>
             <p className="text-xs text-gray-400">{member.member_code || '—'}</p>
