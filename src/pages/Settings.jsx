@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, CreditCard, User, Lock, Save, Plus, Check, Cpu, X as XIcon, Pencil, Trash2 } from 'lucide-react'
+import { Building2, CreditCard, User, Lock, Save, Plus, Check, Cpu, X as XIcon, Pencil, Trash2, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AppLayout from '../components/layout/AppLayout'
 import { supabase, supabaseReady } from '../lib/supabase'
@@ -499,7 +499,281 @@ function DevicesSection() {
   )
 }
 
-// ─── Section 4: Owner profile + password ─────────────────────────────────────
+// ─── Section 4: Trainers ─────────────────────────────────────────────────────
+function TrainersSection() {
+  const activeGymId = useGymStore((s) => s.activeGymId)
+  const gyms        = useGymStore((s) => s.gyms)
+  const userRole    = useGymStore((s) => s.userRole)
+  const userGymId   = useGymStore((s) => s.userGymId)
+
+  const isRestricted  = userRole === 'co_owner' || userRole === 'staff'
+  const effectiveGymId = isRestricted ? userGymId : activeGymId
+
+  const [trainers,      setTrainers]      = useState([])
+  const [editingId,     setEditingId]     = useState(null)
+  const [editForm,      setEditForm]      = useState({})
+  const [savingId,      setSavingId]      = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [newTrainer,    setNewTrainer]    = useState({ name: '', title: '', phone: '', gym_id: '' })
+  const [adding,        setAdding]        = useState(false)
+
+  useEffect(() => {
+    if (!supabaseReady || !effectiveGymId) return
+    supabase.from('trainers').select('id, name, title, phone, gym_id')
+      .eq('gym_id', effectiveGymId).order('name')
+      .then(({ data }) => setTrainers(data || []))
+  }, [effectiveGymId])
+
+  useEffect(() => {
+    setNewTrainer((t) => ({ ...t, gym_id: effectiveGymId || '' }))
+  }, [effectiveGymId])
+
+  function trainerInitials(name = '') {
+    const parts = name.trim().split(/\s+/).filter(Boolean)
+    if (!parts.length) return '?'
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+
+  function startEdit(trainer) {
+    setEditingId(trainer.id)
+    setEditForm({ name: trainer.name || '', title: trainer.title || '', phone: trainer.phone || '' })
+    setDeleteConfirm(null)
+  }
+  function cancelEdit() { setEditingId(null); setEditForm({}) }
+
+  async function saveEdit() {
+    if (!editForm.name.trim()) { toast.error('Name is required'); return }
+    setSavingId(editingId)
+    const { error } = await supabase.from('trainers').update({
+      name:  editForm.name.trim(),
+      title: editForm.title.trim() || null,
+      phone: editForm.phone.trim() || null,
+    }).eq('id', editingId)
+    setSavingId(null)
+    if (error) { toast.error(error.message); return }
+    setTrainers((ts) => ts.map((t) =>
+      t.id === editingId
+        ? { ...t, name: editForm.name.trim(), title: editForm.title.trim() || null, phone: editForm.phone.trim() || null }
+        : t
+    ))
+    setEditingId(null)
+    setEditForm({})
+    toast.success('Trainer updated')
+  }
+
+  async function confirmDelete(trainer) {
+    await supabase.from('members').update({ trainer_id: null }).eq('trainer_id', trainer.id)
+    const { error } = await supabase.from('trainers').delete().eq('id', trainer.id)
+    if (error) { toast.error(error.message); return }
+    setTrainers((ts) => ts.filter((t) => t.id !== trainer.id))
+    setDeleteConfirm(null)
+    toast.success(`${trainer.name} removed as trainer`)
+  }
+
+  async function addTrainer() {
+    if (!newTrainer.name.trim()) { toast.error('Name is required'); return }
+    const gymId = isRestricted ? userGymId : (newTrainer.gym_id || activeGymId)
+    if (!gymId) { toast.error('Select a gym'); return }
+    setAdding(true)
+    const { data, error } = await supabase.from('trainers').insert({
+      name:   newTrainer.name.trim(),
+      title:  newTrainer.title.trim() || null,
+      phone:  newTrainer.phone.trim() || null,
+      gym_id: gymId,
+    }).select().single()
+    setAdding(false)
+    if (error) { toast.error(error.message); return }
+    if (gymId === effectiveGymId) {
+      setTrainers((ts) => [...ts, data].sort((a, b) => a.name.localeCompare(b.name)))
+    }
+    setNewTrainer((t) => ({ ...t, name: '', title: '', phone: '' }))
+    toast.success(`${data.name} added as trainer`)
+  }
+
+  const gymName = gyms.find((g) => g.id === effectiveGymId)?.location
+    || gyms.find((g) => g.id === effectiveGymId)?.name || ''
+
+  return (
+    <Section icon={Users} title="Trainers" subtitle={`Manage trainers for ${gymName || 'active gym'}`}>
+
+      {/* ── Trainer list ── */}
+      {trainers.length === 0 ? (
+        <p className="text-sm text-gray-400 py-2">No trainers added yet. Add your first trainer below.</p>
+      ) : (
+        <div className="space-y-1">
+          {trainers.map((trainer) => {
+
+            /* Delete confirmation row */
+            if (deleteConfirm === trainer.id) {
+              return (
+                <div key={trainer.id} className="flex items-center justify-between gap-3 p-3 bg-danger-light rounded-lg border border-danger/20">
+                  <p className="text-xs text-danger font-medium leading-snug">
+                    Remove <strong>"{trainer.name}"</strong> as trainer? Members assigned to them will have their trainer set to None.
+                  </p>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => confirmDelete(trainer)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-danger text-white rounded-btn hover:opacity-90 transition-opacity"
+                    >
+                      Remove
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-white text-gray-600 rounded-btn border border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+            }
+
+            /* Inline edit row */
+            if (editingId === trainer.id) {
+              return (
+                <div key={trainer.id} className="flex items-center gap-2 p-2 bg-primary-light/30 rounded-lg border border-primary/20">
+                  <input
+                    className="input flex-1 min-w-0 text-sm py-1.5"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Full name"
+                    autoFocus
+                  />
+                  <input
+                    className="input flex-1 min-w-0 text-sm py-1.5"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="Title / Certification"
+                  />
+                  <input
+                    className="input w-28 text-sm py-1.5 shrink-0"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                    placeholder="Phone"
+                    maxLength={10}
+                  />
+                  <button
+                    onClick={saveEdit}
+                    disabled={savingId === trainer.id}
+                    className="shrink-0 w-7 h-7 rounded-btn bg-success text-white hover:opacity-80 transition-opacity flex items-center justify-center disabled:opacity-50"
+                    title="Save"
+                  >
+                    {savingId === trainer.id
+                      ? <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <Check size={13} />}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="shrink-0 w-7 h-7 rounded-btn bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors flex items-center justify-center"
+                    title="Cancel"
+                  >
+                    <XIcon size={13} />
+                  </button>
+                </div>
+              )
+            }
+
+            /* Normal display row */
+            return (
+              <div key={trainer.id} className="flex items-center gap-3 px-1 py-2.5 border-b border-gray-50 last:border-0">
+                <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center shrink-0">
+                  <span className="text-xs font-semibold text-primary">{trainerInitials(trainer.name)}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{trainer.name}</p>
+                  {trainer.title && <p className="text-xs text-gray-500 truncate">{trainer.title}</p>}
+                </div>
+                <span className="text-xs text-gray-400 w-24 text-right shrink-0 truncate">{trainer.phone || '—'}</span>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => startEdit(trainer)}
+                    className="w-7 h-7 rounded-btn text-gray-400 hover:text-primary hover:bg-primary-light transition-colors flex items-center justify-center"
+                    title="Edit trainer"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => { setDeleteConfirm(trainer.id); setEditingId(null) }}
+                    className="w-7 h-7 rounded-btn text-gray-400 hover:text-danger hover:bg-danger-light transition-colors flex items-center justify-center"
+                    title="Remove trainer"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Add new trainer ── */}
+      <div className="mt-5 pt-4 border-t border-gray-100">
+        <p className="text-xs font-semibold text-gray-600 mb-3">Add new trainer</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-1">Full Name</label>
+            <input
+              className="input"
+              placeholder="e.g. Aryan Thakur"
+              value={newTrainer.name}
+              onChange={(e) => setNewTrainer((t) => ({ ...t, name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-1">Title / Certification</label>
+            <input
+              className="input"
+              placeholder="e.g. NASM Certified, Professional Bodybuilder"
+              value={newTrainer.title}
+              onChange={(e) => setNewTrainer((t) => ({ ...t, title: e.target.value }))}
+            />
+            <p className="text-xs text-gray-400 mt-0.5">This will show under their name on member profiles</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-1">Phone Number</label>
+            <div className="flex">
+              <span className="input w-14 text-center text-gray-500 bg-gray-100 shrink-0" style={{ borderRadius: '8px 0 0 8px', borderRight: 0 }}>+91</span>
+              <input
+                className="input flex-1"
+                style={{ borderRadius: '0 8px 8px 0' }}
+                placeholder="9876543210"
+                value={newTrainer.phone}
+                onChange={(e) => setNewTrainer((t) => ({ ...t, phone: e.target.value }))}
+                maxLength={10}
+              />
+            </div>
+          </div>
+          {!isRestricted && (
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-1">Gym</label>
+              <select
+                className="input"
+                value={newTrainer.gym_id}
+                onChange={(e) => setNewTrainer((t) => ({ ...t, gym_id: e.target.value }))}
+              >
+                <option value="">Select gym</option>
+                {gyms.map((g) => (
+                  <option key={g.id} value={g.id}>{g.location || g.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={addTrainer}
+          disabled={adding || !newTrainer.name.trim()}
+          className="btn-primary flex items-center gap-1.5 disabled:opacity-60"
+        >
+          <Plus size={14} />
+          {adding ? 'Adding…' : '+ Add Trainer'}
+        </button>
+      </div>
+    </Section>
+  )
+}
+
+// ─── Section 5: Owner profile + password ─────────────────────────────────────
 function OwnerSection() {
   const [profile,  setProfile]  = useState({ name: '', phone: '', email: '' })
   const [pwd,      setPwd]      = useState({ current: '', next: '', confirm: '' })
@@ -605,6 +879,7 @@ export default function Settings() {
         <GymDetailsSection gyms={gyms} />
         <PlansSection />
         <DevicesSection />
+        <TrainersSection />
         <OwnerSection />
       </div>
     </AppLayout>
