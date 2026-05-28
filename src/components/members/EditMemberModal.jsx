@@ -32,8 +32,9 @@ function Field({ label, error, children }) {
 }
 
 export default function EditMemberModal({ member, onClose, onSaved }) {
-  const [saving,   setSaving]   = useState(false)
-  const [trainers, setTrainers] = useState([])
+  const [saving,     setSaving]     = useState(false)
+  const [trainers,   setTrainers]   = useState([])
+  const [fpDupError, setFpDupError] = useState('')
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -65,8 +66,26 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
       })
   }, [member.gym_id])
 
+  async function checkFpDuplicate(e) {
+    const val = parseInt(e.target.value)
+    if (!val || !member.gym_id) { setFpDupError(''); return }
+    const { data } = await supabase
+      .from('members')
+      .select('id, name')
+      .eq('gym_id', member.gym_id)
+      .eq('fingerprint_id', val)
+      .neq('id', member.id)
+      .limit(1)
+    if (data?.length > 0) {
+      setFpDupError(`ID ${val} is already assigned to ${data[0].name}`)
+    } else {
+      setFpDupError('')
+    }
+  }
+
   async function onSubmit(data) {
     if (!supabaseReady) { toast.error('Database not connected'); return }
+    if (fpDupError) { toast.error(fpDupError); return }
     setSaving(true)
     const { error } = await supabase
       .from('members')
@@ -164,16 +183,19 @@ export default function EditMemberModal({ member, onClose, onSaved }) {
             </Field>
 
             <div className="sm:col-span-2">
-              <Field label="Face / Fingerprint ID" error={errors.fingerprint_id}>
+              <Field label="Hikvision Employee ID" error={errors.fingerprint_id || (fpDupError ? { message: fpDupError } : null)}>
                 <input
                   {...register('fingerprint_id')}
                   type="number"
                   placeholder="User ID from the machine (e.g. 47)"
-                  className="input"
+                  className={`input ${fpDupError ? 'border-danger' : ''}`}
+                  onBlur={checkFpDuplicate}
                 />
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Enter the ID assigned by the Hikvision machine when enrolling this member
-                </p>
+                {!fpDupError && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    ID assigned by the Hikvision machine when enrolling this member
+                  </p>
+                )}
               </Field>
             </div>
           </div>

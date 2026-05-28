@@ -167,6 +167,8 @@ export default function AddMember() {
   const [trainers,    setTrainers]    = useState([])
   const [plans,       setPlans]       = useState([])
   const [submitting,  setSubmitting]  = useState(false)
+  const [nextFpId,    setNextFpId]    = useState(null)
+  const [fpDupError,  setFpDupError]  = useState('')
 
   // Portal login state
   const [portalOption, setPortalOption] = useState('create')       // 'create' | 'skip'
@@ -248,8 +250,41 @@ export default function AddMember() {
     if (selectedPlan) setValue('payment_amount', selectedPlan.price)
   }, [selectedPlan, setValue])
 
+  // Suggest next available fingerprint ID when gym changes
+  useEffect(() => {
+    if (!supabaseReady || !watchedGymId) return
+    supabase
+      .from('members')
+      .select('fingerprint_id')
+      .eq('gym_id', watchedGymId)
+      .not('fingerprint_id', 'is', null)
+      .order('fingerprint_id', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        const max = data?.[0]?.fingerprint_id
+        setNextFpId(max != null ? max + 1 : 1)
+      })
+  }, [watchedGymId])
+
+  async function checkFpDuplicate(e) {
+    const val = parseInt(e.target.value)
+    if (!val || !watchedGymId) { setFpDupError(''); return }
+    const { data } = await supabase
+      .from('members')
+      .select('id, name')
+      .eq('gym_id', watchedGymId)
+      .eq('fingerprint_id', val)
+      .limit(1)
+    if (data?.length > 0) {
+      setFpDupError(`ID ${val} is already assigned to ${data[0].name}`)
+    } else {
+      setFpDupError('')
+    }
+  }
+
   async function onSubmit(data, sendWelcomeWA = false) {
     if (!supabaseReady) { toast.error('Database not connected'); return }
+    if (fpDupError) { toast.error(fpDupError); return }
 
     // Validate portal password if creating
     if (portalOption === 'create' && pwdMode === 'custom' && customPwd.length < 6) {
@@ -279,8 +314,9 @@ export default function AddMember() {
         plan_id:        data.plan_id,
         payment_amount: data.payment_amount,
         payment_mode:   data.payment_mode,
-        transaction_id: data.transaction_id || null,
-        start_date:     data.start_date,
+        transaction_id:  data.transaction_id || null,
+        start_date:      data.start_date,
+        fingerprint_id:  data.fingerprint_id ? parseInt(data.fingerprint_id) : null,
       })
 
       setNewMemberId(result.member.id)
@@ -417,8 +453,19 @@ export default function AddMember() {
               </Field>
             </div>
 
-            <Field label="Fingerprint ID" error={errors.fingerprint_id}>
-              <input {...register('fingerprint_id')} type="number" placeholder="ID from fingerprint machine (optional)" className="input" />
+            <Field label="Hikvision Employee ID" error={errors.fingerprint_id || (fpDupError ? { message: fpDupError } : null)}>
+              <input
+                {...register('fingerprint_id')}
+                type="number"
+                placeholder={nextFpId != null ? `Next available: ${nextFpId}` : 'ID from fingerprint machine (optional)'}
+                className={`input ${fpDupError ? 'border-danger' : ''}`}
+                onBlur={checkFpDuplicate}
+              />
+              {!fpDupError && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  ID assigned by the Hikvision machine when enrolling this member
+                </p>
+              )}
             </Field>
           </div>
         </Section>

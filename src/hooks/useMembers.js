@@ -67,7 +67,7 @@ export async function addMember(memberData) {
     gym_id, name, phone, whatsapp, date_of_birth, gender,
     address, emergency_contact, health_notes, trainer_id,
     batch_timing, plan_id, payment_amount, payment_mode,
-    transaction_id, start_date,
+    transaction_id, start_date, fingerprint_id,
   } = memberData
 
   // 1. Fetch plan details
@@ -85,6 +85,7 @@ export async function addMember(memberData) {
       gym_id, name, phone, whatsapp: whatsapp || phone,
       date_of_birth, gender, address, emergency_contact,
       health_notes, trainer_id, batch_timing, status: 'active',
+      fingerprint_id: fingerprint_id || null,
     })
     .select()
     .single()

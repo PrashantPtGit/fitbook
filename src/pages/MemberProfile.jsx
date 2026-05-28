@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Edit2, Trash2, PauseCircle, PlayCircle,
   Phone, Calendar, User, MapPin, Heart,
-  Activity, CreditCard, MessageCircle, Clock, Fingerprint, Shield, Pencil, X as XIcon,
+  Activity, CreditCard, MessageCircle, Clock, Fingerprint, Shield, Pencil, X as XIcon, Check,
 } from 'lucide-react'
 import { differenceInDays, format, parseISO, isValid, startOfMonth, subMonths, addDays } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -161,6 +161,86 @@ function DetailRow({ icon: Icon, label, value, subtitle }) {
         <p className="text-xs text-gray-400">{label}</p>
         <p className="text-sm text-gray-800 break-words">{value}</p>
         {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  )
+}
+
+// ─── Fingerprint inline-edit row ─────────────────────────────────────────────
+function FingerprintRow({ member, setMember }) {
+  const [editing, setEditing] = useState(false)
+  const [value,   setValue]   = useState(member.fingerprint_id != null ? String(member.fingerprint_id) : '')
+  const [saving,  setSaving]  = useState(false)
+  const [dupErr,  setDupErr]  = useState('')
+
+  async function checkDup(val) {
+    if (!val || !member.gym_id) { setDupErr(''); return }
+    const { data } = await supabase
+      .from('members')
+      .select('id, name')
+      .eq('gym_id', member.gym_id)
+      .eq('fingerprint_id', parseInt(val))
+      .neq('id', member.id)
+      .limit(1)
+    setDupErr(data?.length > 0 ? `ID ${val} already assigned to ${data[0].name}` : '')
+  }
+
+  async function handleSave() {
+    if (dupErr) return
+    setSaving(true)
+    const fpVal = value ? parseInt(value) : null
+    const { error } = await supabase.from('members').update({ fingerprint_id: fpVal }).eq('id', member.id)
+    setSaving(false)
+    if (error) { toast.error(error.message); return }
+    setMember((m) => ({ ...m, fingerprint_id: fpVal }))
+    setEditing(false)
+    toast.success('Employee ID saved')
+  }
+
+  return (
+    <div className="flex items-start gap-2.5 py-2">
+      <Fingerprint size={14} className="text-gray-400 mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-gray-400">Hikvision Employee ID</p>
+        {editing ? (
+          <div className="flex items-center gap-2 mt-0.5">
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => { setValue(e.target.value); setDupErr('') }}
+              onBlur={(e) => checkDup(e.target.value)}
+              className="input text-sm h-7 w-28 py-0 px-2"
+              placeholder="e.g. 47"
+              autoFocus
+            />
+            <button
+              onClick={handleSave}
+              disabled={saving || !!dupErr}
+              className="text-success hover:text-success-dark transition-colors disabled:opacity-40"
+            >
+              <Check size={14} />
+            </button>
+            <button
+              onClick={() => { setEditing(false); setValue(member.fingerprint_id != null ? String(member.fingerprint_id) : ''); setDupErr('') }}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <XIcon size={14} />
+            </button>
+            {dupErr && <p className="text-xs text-danger">{dupErr}</p>}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <p className={`text-sm ${member.fingerprint_id ? 'text-gray-800' : 'text-gray-400 italic'}`}>
+              {member.fingerprint_id != null ? String(member.fingerprint_id) : 'Not enrolled yet'}
+            </p>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-gray-300 hover:text-gray-500 transition-colors"
+            >
+              <Pencil size={11} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -507,7 +587,7 @@ export default function MemberProfile() {
                 <DetailRow icon={MapPin}      label="Address"          value={member.address} />
                 <DetailRow icon={Phone}       label="Emergency contact" value={member.emergency_contact} />
                 <DetailRow icon={Heart}       label="Health notes"     value={member.health_notes} />
-                <DetailRow icon={Fingerprint} label="Fingerprint ID"   value={member.fingerprint_id ? String(member.fingerprint_id) : null} />
+                <FingerprintRow member={member} setMember={setMember} />
                 <DetailRow icon={User}        label="Trainer"          value={member.trainers?.name} subtitle={member.trainers?.title || undefined} />
               </div>
             </div>
