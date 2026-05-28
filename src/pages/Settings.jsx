@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, CreditCard, User, Lock, Save, Plus, Check, Cpu, X as XIcon } from 'lucide-react'
+import { Building2, CreditCard, User, Lock, Save, Plus, Check, Cpu, X as XIcon, Pencil, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AppLayout from '../components/layout/AppLayout'
 import { supabase, supabaseReady } from '../lib/supabase'
@@ -131,15 +131,30 @@ function GymDetailsSection({ gyms }) {
   )
 }
 
+// ─── Smart day default based on plan name ────────────────────────────────────
+function smartDays(name) {
+  const n = name.toLowerCase()
+  if (/daily|(?<!\w)day(?!\w)/.test(n))            return 1
+  if (/weekly|(?<!\w)week(?!\w)/.test(n))           return 7
+  if (/monthly|(?<!\w)month(?!\w)/.test(n))         return 30
+  if (/quarterly|(?<!\w)quarter(?!\w)/.test(n))     return 90
+  if (/half|6\s*month/.test(n))                     return 180
+  if (/yearly|annual|(?<!\w)year(?!\w)/.test(n))    return 365
+  return ''
+}
+
 // ─── Section 2: Plan management ───────────────────────────────────────────────
 function PlansSection() {
   const activeGymId = useGymStore((s) => s.activeGymId)
   const gyms        = useGymStore((s) => s.gyms)
 
-  const [plans,   setPlans]   = useState([])
-  const [saving,  setSaving]  = useState(null)   // plan id being saved
-  const [adding,  setAdding]  = useState(false)
-  const [newPlan, setNewPlan] = useState({ name: '', duration_days: 30, price: 0 })
+  const [plans,          setPlans]         = useState([])
+  const [editingId,      setEditingId]     = useState(null)
+  const [editForm,       setEditForm]      = useState({})
+  const [savingId,       setSavingId]      = useState(null)
+  const [deleteConfirm,  setDeleteConfirm] = useState(null) // plan id awaiting confirm
+  const [adding,         setAdding]        = useState(false)
+  const [newPlan,        setNewPlan]       = useState({ name: '', duration_days: '', price: '' })
 
   useEffect(() => {
     if (!supabaseReady || !activeGymId) return
@@ -147,104 +162,223 @@ function PlansSection() {
       .then(({ data }) => setPlans(data || []))
   }, [activeGymId])
 
-  async function savePlan(plan) {
-    setSaving(plan.id)
-    const { error } = await supabase.from('plans').update({ name: plan.name, price: plan.price }).eq('id', plan.id)
-    setSaving(null)
-    if (error) { toast.error(error.message); return }
-    toast.success(`${plan.name} updated`)
+  // ── Edit existing plan ──────────────────────────────────────────────────────
+  function startEdit(plan) {
+    setEditingId(plan.id)
+    setEditForm({ name: plan.name, price: plan.price, duration_days: plan.duration_days })
+    setDeleteConfirm(null)
   }
 
+  function cancelEdit() { setEditingId(null); setEditForm({}) }
+
+  async function saveEdit() {
+    setSavingId(editingId)
+    const { error } = await supabase.from('plans').update({
+      name:          editForm.name,
+      price:         Number(editForm.price),
+      duration_days: Number(editForm.duration_days),
+    }).eq('id', editingId)
+    setSavingId(null)
+    if (error) { toast.error(error.message); return }
+    setPlans(ps => ps.map(p =>
+      p.id === editingId
+        ? { ...p, name: editForm.name, price: Number(editForm.price), duration_days: Number(editForm.duration_days) }
+        : p
+    ))
+    setEditingId(null)
+    setEditForm({})
+    toast.success('Plan updated')
+  }
+
+  // ── Delete plan ─────────────────────────────────────────────────────────────
+  async function confirmDelete(id) {
+    const { error } = await supabase.from('plans').delete().eq('id', id)
+    if (error) { toast.error(error.message); return }
+    setPlans(ps => ps.filter(p => p.id !== id))
+    setDeleteConfirm(null)
+    toast.success('Plan deleted')
+  }
+
+  // ── Add new plan ────────────────────────────────────────────────────────────
   async function addPlan() {
-    if (!newPlan.name || !activeGymId) return
+    if (!newPlan.name || !newPlan.duration_days || !activeGymId) return
     setAdding(true)
     const { data, error } = await supabase.from('plans').insert({
       gym_id:        activeGymId,
       name:          newPlan.name,
       duration_days: Number(newPlan.duration_days),
-      price:         Number(newPlan.price),
+      price:         Number(newPlan.price) || 0,
       is_active:     true,
     }).select().single()
     setAdding(false)
     if (error) { toast.error(error.message); return }
-    setPlans(p => [...p, data])
-    setNewPlan({ name: '', duration_days: 30, price: 0 })
+    setPlans(ps => [...ps, data].sort((a, b) => a.duration_days - b.duration_days))
+    setNewPlan({ name: '', duration_days: '', price: '' })
     toast.success('Plan added')
+  }
+
+  function handleNewNameChange(name) {
+    const days = smartDays(name)
+    setNewPlan(p => ({ ...p, name, ...(days !== '' ? { duration_days: days } : {}) }))
   }
 
   const gymName = gyms.find(g => g.id === activeGymId)?.location || gyms.find(g => g.id === activeGymId)?.name || ''
 
   return (
     <Section icon={CreditCard} title="Membership plans" subtitle={`Plans for ${gymName || 'active gym'}`}>
+
+      {/* ── Existing plans list ── */}
       {plans.length === 0 ? (
         <p className="text-sm text-gray-400 py-2">No plans found for this gym.</p>
       ) : (
-        <div className="space-y-3">
-          {plans.map((plan) => (
-            <div key={plan.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-              <div className="flex-1 min-w-0">
-                <input
-                  className="input text-sm py-1.5"
-                  value={plan.name}
-                  onChange={e => setPlans(ps => ps.map(p => p.id === plan.id ? { ...p, name: e.target.value } : p))}
-                />
+        <div className="space-y-1">
+          {plans.map((plan) => {
+            /* Delete confirmation row */
+            if (deleteConfirm === plan.id) {
+              return (
+                <div key={plan.id} className="flex items-center justify-between gap-3 p-3 bg-danger-light rounded-lg border border-danger/20">
+                  <p className="text-xs text-danger font-medium leading-snug">
+                    Delete <strong>"{plan.name}"</strong>? Members currently on this plan will not be affected.
+                  </p>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => confirmDelete(plan.id)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-danger text-white rounded-btn hover:opacity-90 transition-opacity"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-white text-gray-600 rounded-btn border border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+            }
+
+            /* Inline edit row */
+            if (editingId === plan.id) {
+              return (
+                <div key={plan.id} className="flex items-center gap-2 p-2 bg-primary-light/30 rounded-lg border border-primary/20">
+                  <input
+                    className="input flex-1 min-w-0 text-sm py-1.5"
+                    value={editForm.name}
+                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Plan name"
+                  />
+                  <input
+                    type="number"
+                    className="input w-20 text-sm py-1.5 text-center shrink-0"
+                    value={editForm.price}
+                    onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
+                    placeholder="₹"
+                    title="Amount (₹)"
+                  />
+                  <input
+                    type="number"
+                    className="input w-16 text-sm py-1.5 text-center shrink-0"
+                    value={editForm.duration_days}
+                    onChange={e => setEditForm(f => ({ ...f, duration_days: e.target.value }))}
+                    placeholder="Days"
+                    title="Duration (Days)"
+                  />
+                  <button
+                    onClick={saveEdit}
+                    disabled={savingId === plan.id}
+                    className="shrink-0 w-7 h-7 rounded-btn bg-success text-white hover:opacity-80 transition-opacity flex items-center justify-center disabled:opacity-50"
+                    title="Save"
+                  >
+                    {savingId === plan.id
+                      ? <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <Check size={13} />}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="shrink-0 w-7 h-7 rounded-btn bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors flex items-center justify-center"
+                    title="Cancel"
+                  >
+                    <XIcon size={13} />
+                  </button>
+                </div>
+              )
+            }
+
+            /* Normal display row */
+            return (
+              <div key={plan.id} className="flex items-center gap-3 px-1 py-2.5 border-b border-gray-50 last:border-0 group">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{plan.name}</p>
+                </div>
+                <span className="text-sm font-semibold text-gray-700 w-20 text-right shrink-0">
+                  ₹{Number(plan.price).toLocaleString('en-IN')}
+                </span>
+                <span className="text-xs text-gray-400 w-14 shrink-0 text-center">{plan.duration_days}d</span>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => { startEdit(plan) }}
+                    className="w-7 h-7 rounded-btn text-gray-400 hover:text-primary hover:bg-primary-light transition-colors flex items-center justify-center"
+                    title="Edit plan"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => { setDeleteConfirm(plan.id); setEditingId(null) }}
+                    className="w-7 h-7 rounded-btn text-gray-400 hover:text-danger hover:bg-danger-light transition-colors flex items-center justify-center"
+                    title="Delete plan"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-              <div className="w-20 shrink-0">
-                <input
-                  type="number"
-                  className="input text-sm py-1.5 text-center"
-                  value={plan.price}
-                  onChange={e => setPlans(ps => ps.map(p => p.id === plan.id ? { ...p, price: Number(e.target.value) } : p))}
-                />
-              </div>
-              <span className="text-xs text-gray-400 w-14 shrink-0">{plan.duration_days}d</span>
-              <button
-                onClick={() => savePlan(plan)}
-                disabled={saving === plan.id}
-                className="shrink-0 w-7 h-7 rounded-btn bg-primary-light text-primary hover:bg-primary hover:text-white transition-colors flex items-center justify-center disabled:opacity-50"
-              >
-                {saving === plan.id
-                  ? <span className="w-3 h-3 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
-                  : <Check size={13} />}
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
-      {/* Add new plan */}
-      <div className="mt-4 pt-4 border-t border-gray-100">
-        <p className="text-xs font-semibold text-gray-500 mb-3">Add custom plan</p>
-        <div className="flex gap-2 flex-wrap">
-          <input
-            className="input flex-1 min-w-[120px]"
-            placeholder="Plan name"
-            value={newPlan.name}
-            onChange={e => setNewPlan(p => ({ ...p, name: e.target.value }))}
-          />
-          <input
-            type="number"
-            className="input w-24"
-            placeholder="Days"
-            value={newPlan.duration_days}
-            onChange={e => setNewPlan(p => ({ ...p, duration_days: e.target.value }))}
-          />
-          <input
-            type="number"
-            className="input w-24"
-            placeholder="₹ Price"
-            value={newPlan.price}
-            onChange={e => setNewPlan(p => ({ ...p, price: e.target.value }))}
-          />
-          <button
-            onClick={addPlan}
-            disabled={adding || !newPlan.name}
-            className="btn-primary flex items-center gap-1.5 disabled:opacity-60"
-          >
-            <Plus size={14} />
-            {adding ? 'Adding…' : 'Add'}
-          </button>
+      {/* ── Add new plan ── */}
+      <div className="mt-5 pt-4 border-t border-gray-100">
+        <p className="text-xs font-semibold text-gray-600 mb-3">Add new plan</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          <div className="sm:col-span-1">
+            <label className="block text-sm font-medium text-gray-800 mb-1">Plan Name</label>
+            <input
+              className="input"
+              placeholder="e.g. Monthly Premium"
+              value={newPlan.name}
+              onChange={e => handleNewNameChange(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-1">Amount (₹)</label>
+            <input
+              type="number"
+              className="input"
+              placeholder="e.g. 1500"
+              value={newPlan.price}
+              onChange={e => setNewPlan(p => ({ ...p, price: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-1">Duration (Days)</label>
+            <input
+              type="number"
+              className="input"
+              placeholder="e.g. 30"
+              value={newPlan.duration_days}
+              onChange={e => setNewPlan(p => ({ ...p, duration_days: e.target.value }))}
+            />
+          </div>
         </div>
+        <button
+          onClick={addPlan}
+          disabled={adding || !newPlan.name || !newPlan.duration_days}
+          className="btn-primary flex items-center gap-1.5 disabled:opacity-60"
+        >
+          <Plus size={14} />
+          {adding ? 'Adding…' : 'Add plan'}
+        </button>
       </div>
     </Section>
   )
