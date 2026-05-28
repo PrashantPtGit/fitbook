@@ -95,6 +95,9 @@ async function syncAttendance(device) {
   const events = data?.AcsEvent?.InfoList || []
   if (events.length === 0) {
     console.log('[attendance] No new events')
+    await supabasePatch(`fingerprint_devices?id=eq.${device.id}`, {
+      last_synced_at: new Date().toISOString(),
+    })
     return
   }
 
