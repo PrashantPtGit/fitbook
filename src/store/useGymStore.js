@@ -47,7 +47,20 @@ export const useGymStore = create((set) => ({
   userName:    null,   // display name from user_roles table
   roleLoading: true,
   setUserRole: (role, gymId, name) =>
-    set({ userRole: role, userGymId: gymId, userName: name, roleLoading: false }),
+    set((state) => ({
+      userRole: role,
+      userGymId: gymId,
+      userName: name,
+      roleLoading: false,
+      // Co-owners are locked to one gym — set activeGymId immediately so member
+      // queries (which depend on it) work before useGymsData's async fetch completes.
+      ...(role === 'co_owner' && gymId
+        ? {
+            activeGymId: gymId,
+            activeGym: state.gyms.find((g) => g.id === gymId) ?? null,
+          }
+        : {}),
+    })),
 
   // UI SLICE
   loading: false,
