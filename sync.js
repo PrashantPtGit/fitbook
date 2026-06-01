@@ -101,30 +101,64 @@ async function syncAttendance(device) {
     return
   }
 
-  const members = await supabaseGet(`members?gym_id=eq.${GYM_ID}&fingerprint_id=not.is.null&select=id,fingerprint_id`)
+  // Fetch all active members — build fingerprint map AND name map for fallback
+  const members = await supabaseGet(`members?gym_id=eq.${GYM_ID}&status=neq.deleted&select=id,name,fingerprint_id`)
   const fpMap = {}
-  members.forEach((m) => { fpMap[parseInt(m.fingerprint_id)] = m.id })
+  const nameMap = {}
+  members.forEach((m) => {
+    if (m.fingerprint_id) fpMap[parseInt(m.fingerprint_id)] = m.id
+    if (m.name) nameMap[m.name.toLowerCase()] = m.id
+  })
 
   const attendanceRecords = []
   const logRecords = []
   const seen = new Set()
 
   for (const event of events) {
+    // Skip pure door/system events — only process access-granted (major=1) or named scans
+    if (event.major !== 1 && !event.name) continue
+
     const machineUserId = event.employeeNoString || event.cardNo
     const punchTime = event.time
-    if (!machineUserId || !punchTime) continue
+    if (!punchTime) continue
 
     const date = punchTime.split('T')[0]
-    const memberId = fpMap[parseInt(machineUserId)] || null
+    let memberId = null
+    let matchMethod = 'unmatched'
+
+    // Primary: match by fingerprint/employee ID
+    if (machineUserId) {
+      memberId = fpMap[parseInt(machineUserId)] || null
+      if (memberId) matchMethod = 'fingerprint'
+    }
+
+    // Fallback: match by name when employeeNoString is empty
+    if (!memberId && event.name) {
+      const eventName = event.name.toLowerCase()
+      if (nameMap[eventName]) {
+        memberId = nameMap[eventName]
+        matchMethod = 'name-exact'
+      } else {
+        const nameKey = Object.keys(nameMap).find(
+          (n) => n.includes(eventName) || eventName.includes(n)
+        )
+        if (nameKey) {
+          memberId = nameMap[nameKey]
+          matchMethod = 'name-partial'
+        }
+      }
+      if (memberId) console.log(`[attendance] Name match (${matchMethod}): "${event.name}" → ${memberId}`)
+    }
+
     const key = `${memberId}_${date}`
 
     logRecords.push({
       gym_id: GYM_ID,
       device_id: device.id,
-      machine_user_id: parseInt(machineUserId),
+      machine_user_id: machineUserId ? (parseInt(machineUserId) || null) : null,
       member_id: memberId,
       punch_time: punchTime,
-      sync_status: memberId ? 'matched' : 'unmatched',
+      sync_status: memberId ? matchMethod : 'unmatched',
     })
 
     if (memberId && !seen.has(key)) {
@@ -136,6 +170,8 @@ async function syncAttendance(device) {
         date,
         source: 'fingerprint',
       })
+    } else if (!memberId) {
+      console.log(`[attendance] No match: employeeNo="${machineUserId || ''}" name="${event.name || ''}"`)
     }
   }
 
