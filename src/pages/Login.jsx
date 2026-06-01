@@ -121,7 +121,9 @@ function StaffLoginCard() {
       return
     }
 
+    console.log('[Login] role=%s gym_id=%s name=%s', roleData.role, roleData.gym_id, roleData.name)
     useGymStore.getState().setUserRole(roleData.role, roleData.gym_id, roleData.name)
+    console.log('[Login] store activeGymId after setUserRole:', useGymStore.getState().activeGymId)
     toast.success(`Welcome back, ${roleData.name || 'Staff'}!`)
     navigate('/')
   }

@@ -15,6 +15,7 @@ export function useMembersHook() {
   })))
 
   const fetchMembers = useCallback(async () => {
+    console.log('[useMembers] fetchMembers called — activeGymId:', activeGymId)
     if (!supabaseReady || !activeGymId) { setLoading(false); return }
 
     try {

@@ -65,7 +65,9 @@ function AuthInit({ children }) {
           .single()
 
         if (roleData) {
+          console.log('[AuthInit] role=%s gym_id=%s name=%s', roleData.role, roleData.gym_id, roleData.name)
           useGymStore.getState().setUserRole(roleData.role, roleData.gym_id, roleData.name)
+          console.log('[AuthInit] store activeGymId after setUserRole:', useGymStore.getState().activeGymId)
         } else {
           // Session exists but not in user_roles → treat as member
           useGymStore.getState().setUserRole('member', null, session.user.email?.split('@')[0] || '')
