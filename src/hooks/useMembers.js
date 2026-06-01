@@ -24,8 +24,8 @@ export function useMembersHook() {
         .from('members')
         .select(`
           *,
-          memberships!inner(*, plans(name, duration_days, price)),
-          trainers(name, title)
+          memberships(*, plans(name, duration_days, price)),
+          trainers(name)
         `)
         .eq('gym_id', activeGymId)
         .neq('status', 'deleted')
@@ -52,7 +52,7 @@ export async function fetchAllMembers(gymId) {
   if (!supabaseReady || !gymId) return []
   const { data, error } = await supabase
     .from('members')
-    .select('*, memberships!inner(*, plans(name, duration_days, price)), trainers(name, title)')
+    .select('*, memberships(*, plans(name, duration_days, price)), trainers(name)')
     .eq('gym_id', gymId)
     .neq('status', 'deleted')
     .order('created_at', { ascending: false })
