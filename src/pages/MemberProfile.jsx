@@ -318,7 +318,7 @@ export default function MemberProfile() {
       const [memberRes, paymentsRes, attendanceRes] = await Promise.all([
         supabase
           .from('members')
-          .select('*, memberships(*, plans(name, duration_days, price)), trainers(name, title), gyms(name, location)')
+          .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
           .eq('id', id)
           .single(),
 
@@ -475,7 +475,7 @@ export default function MemberProfile() {
     setEditMembershipOpen(false)
     supabase
       .from('members')
-      .select('*, memberships(*, plans(name, duration_days, price)), trainers(name, title), gyms(name, location)')
+      .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
       .eq('id', id)
       .single()
       .then(({ data }) => { if (data) setMember(data) })
@@ -980,7 +980,7 @@ export default function MemberProfile() {
             // Refetch updated member data
             supabase
               .from('members')
-              .select('*, memberships(*, plans(name, duration_days, price)), trainers(name, title), gyms(name, location)')
+              .select('*, memberships(*, plans(name, duration_days, price)), trainers(name), gyms(name, location)')
               .eq('id', id)
               .single()
               .then(({ data }) => { if (data) setMember(data) })
