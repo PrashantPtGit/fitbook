@@ -217,16 +217,17 @@ export default function AddMember() {
   // duplicate DB rows created by repeated seed runs
   useEffect(() => {
     if (!supabaseReady || !watchedGymId) return
-    supabase
-      .from('trainers')
-      .select('id, name, title')
-      .eq('gym_id', watchedGymId)
-      .order('name')
-      .then(({ data }) => {
-        const seen = new Set()
-        const unique = (data || []).filter((t) => !seen.has(t.name) && seen.add(t.name))
-        setTrainers(unique)
-      })
+    async function fetchTrainers() {
+      let { data, error } = await supabase
+        .from('trainers').select('id, name, title').eq('gym_id', watchedGymId).order('name')
+      if (error) {
+        // title column may not exist yet — retry without it
+        ;({ data } = await supabase.from('trainers').select('id, name').eq('gym_id', watchedGymId).order('name'))
+      }
+      const seen = new Set()
+      setTrainers((data || []).filter((t) => !seen.has(t.name) && seen.add(t.name)))
+    }
+    fetchTrainers()
   }, [watchedGymId])
 
   // Fetch plans when gym changes
@@ -454,13 +455,18 @@ export default function AddMember() {
             </div>
 
             <Field label="Hikvision Employee ID" error={errors.fingerprint_id || (fpDupError ? { message: fpDupError } : null)}>
-              <input
-                {...register('fingerprint_id')}
-                type="number"
-                placeholder={nextFpId != null ? `Next available: ${nextFpId}` : 'ID from fingerprint machine (optional)'}
-                className={`input ${fpDupError ? 'border-danger' : ''}`}
-                onBlur={checkFpDuplicate}
-              />
+              {(() => {
+                const { onBlur: rhfBlur, ...fpReg } = register('fingerprint_id')
+                return (
+                  <input
+                    {...fpReg}
+                    type="number"
+                    placeholder={nextFpId != null ? `Next available: ${nextFpId}` : 'ID from fingerprint machine (optional)'}
+                    className={`input ${fpDupError ? 'border-danger' : ''}`}
+                    onBlur={(e) => { rhfBlur(e); checkFpDuplicate(e) }}
+                  />
+                )
+              })()}
               {!fpDupError && (
                 <p className="text-xs text-gray-400 mt-0.5">
                   ID assigned by the Hikvision machine when enrolling this member

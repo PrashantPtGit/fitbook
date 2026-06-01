@@ -519,9 +519,17 @@ function TrainersSection() {
 
   useEffect(() => {
     if (!supabaseReady || !effectiveGymId) return
-    supabase.from('trainers').select('id, name, title, phone, gym_id')
-      .eq('gym_id', effectiveGymId).order('name')
-      .then(({ data }) => setTrainers(data || []))
+    async function fetchTrainers() {
+      let { data, error } = await supabase.from('trainers').select('id, name, title, phone, gym_id')
+        .eq('gym_id', effectiveGymId).order('name')
+      if (error) {
+        // title column may not exist yet — retry without it
+        ;({ data } = await supabase.from('trainers').select('id, name, phone, gym_id')
+          .eq('gym_id', effectiveGymId).order('name'))
+      }
+      setTrainers((data || []).map((t) => ({ title: '', ...t })))
+    }
+    fetchTrainers()
   }, [effectiveGymId])
 
   useEffect(() => {

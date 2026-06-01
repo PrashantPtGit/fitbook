@@ -86,7 +86,7 @@ export async function addMember(memberData) {
       gym_id, name, phone, whatsapp: whatsapp || phone,
       date_of_birth, gender, address, emergency_contact,
       health_notes, trainer_id, batch_timing, status: 'active',
-      fingerprint_id: fingerprint_id || null,
+      fingerprint_id: fingerprint_id != null ? parseInt(fingerprint_id, 10) || null : null,
     })
     .select()
     .single()
